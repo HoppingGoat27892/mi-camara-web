@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara Web y Elemento Gráfico</title>
+    <title>Cámara Web con Superposición de Imagen</title>
     <style>
         body {
             margin: 0;
@@ -17,13 +17,45 @@
             color: white;
             font-family: Arial, sans-serif;
         }
-        video {
-            max-width: 100%;
-            max-height: 80vh; /* Ajusta esto según necesites */
-            background-color: black;
+
+        /* Contenedor principal para la cámara y la imagen superpuesta */
+        .camera-overlay-container {
+            position: relative; /* Muy importante para posicionar a sus hijos */
+            width: 80vw; /* Ajusta el ancho del contenedor */
+            max-width: 600px; /* Ancho máximo para pantallas grandes */
+            aspect-ratio: 4/3; /* O el ratio que mejor se adapte a tu video/imagen */
+            background-color: black; /* Fondo del contenedor si el video no cubre todo */
             border: 2px solid #555;
+            box-sizing: border-box;
+            display: flex; /* Para centrar el contenido si es necesario */
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Asegura que el contenido no se salga */
+        }
+
+        video, .app-overlay-image {
+            position: absolute; /* Ambos elementos se posicionan absolutamente */
+            top: 0;
+            left: 0;
+            width: 100%; /* Ambos ocupan el 100% del contenedor padre */
+            height: 100%; /* Ambos ocupan el 100% del contenedor padre */
+            object-fit: cover; /* Para que el video/imagen cubra el espacio sin distorsionarse */
             box-sizing: border-box; /* Incluye padding y border en el tamaño total */
         }
+
+        video {
+            z-index: 1; /* El video estará debajo */
+        }
+
+        .app-overlay-image {
+            z-index: 2; /* La imagen estará encima del video */
+            /* Si la imagen tiene un fondo sólido, este tapará el video.
+               Si la imagen tiene un fondo transparente, el video se verá a través. */
+            pointer-events: none; /* Permite interactuar con elementos debajo de la imagen (ej. el video si se pudiera) */
+            /* Si la imagen no tiene fondo transparente, podrías añadir una opacidad: */
+            /* opacity: 0.7; */
+        }
+
         button {
             margin-top: 20px;
             padding: 15px 30px;
@@ -34,6 +66,7 @@
             border: none;
             border-radius: 5px;
             transition: background-color 0.3s ease;
+            z-index: 3; /* Para que el botón esté siempre encima de todo */
         }
         button:hover {
             background-color: #0056b3;
@@ -51,39 +84,19 @@
             font-size: 1.1em;
             color: #ffc107;
             text-align: center;
-        }
-
-        /* Estilos para el contenedor de la imagen */
-        .image-container {
-            margin-top: 30px; /* Espacio entre los elementos de la cámara y la imagen */
-            width: 150px; /* Ancho fijo para la imagen */
-            height: auto; /* Altura automática para mantener la proporción */
-            border: 1px solid #777; /* Borde sutil para la imagen */
-            padding: 10px; /* Espacio alrededor de la imagen */
-            background-color: #444; /* Fondo para el contenedor de la imagen */
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .app-image {
-            max-width: 100%; /* Asegura que la imagen no desborde su contenedor */
-            height: auto;    /* Mantiene la proporción */
-            display: block;  /* Elimina espacio extra debajo de la imagen */
+            z-index: 3; /* Para que el mensaje esté siempre encima de todo */
         }
     </style>
 </head>
 <body>
-    <video id="videoElement" autoplay playsinline></video>
+    <div class="camera-overlay-container">
+        <video id="videoElement" autoplay playsinline></video>
+        <img src="image_f2b0cc.png" alt="Dispensador de Papel" class="app-overlay-image">
+    </div>
+
     <button id="takePhotoButton">Tomar Foto</button>
     <canvas id="canvas"></canvas>
     <div id="message" class="message"></div>
-
-    <div class="image-container">
-        <img src="image_f2b0cc.png" alt="Dispensador de Papel" class="app-image">
-    </div>
 
     <script>
         const video = document.getElementById('videoElement');
@@ -105,8 +118,9 @@
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 messageDiv.textContent = 'Cámara activada.';
-                video.style.display = 'block'; // Asegúrate de que el video sea visible
-                takePhotoButton.style.display = 'block'; // Asegúrate de que el botón sea visible
+                // No necesitamos cambiar el display del video, el CSS ya lo maneja
+                // video.style.display = 'block';
+                // takePhotoButton.style.display = 'block'; // Asegúrate de que el botón sea visible
             } catch (err) {
                 console.error('Error al acceder a la cámara: ', err);
                 if (err.name === 'NotAllowedError') {
@@ -118,7 +132,8 @@
                 } else {
                     messageDiv.textContent = 'Error desconocido al iniciar la cámara. Inténtalo de nuevo.';
                 }
-                video.style.display = 'none';
+                // Si la cámara falla, ocultamos el contenedor para evitar un espacio vacío
+                document.querySelector('.camera-overlay-container').style.display = 'none';
                 takePhotoButton.style.display = 'none';
             }
         }
