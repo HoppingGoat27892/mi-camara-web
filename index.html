@@ -3,95 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara Web con Patrón Superpuesto y Scroll</title>
+    <title>Cámara Web con Patrón y Galería de Fotos</title>
     <style>
         body {
             margin: 0;
-            /* overflow: hidden; -- ¡Quitamos esto para permitir el scroll! */
-            overflow-y: auto; /* Permite scroll vertical si el contenido excede la altura */
+            overflow-y: auto; /* Permite scroll vertical */
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; /* Alinea los elementos al inicio del eje vertical */
+            justify-content: flex-start;
             align-items: center;
-            min-height: 100vh; /* Asegura que el body tenga al menos la altura de la ventana */
+            min-height: 100vh;
             background-color: #333;
             color: white;
             font-family: Arial, sans-serif;
-            padding: 20px; /* Añadir padding para que el contenido no pegue a los bordes */
+            padding: 20px;
             box-sizing: border-box;
         }
 
         /* Contenedor principal para la cámara y la imagen superpuesta */
         .camera-overlay-container {
-            position: relative; /* Esencial para el posicionamiento absoluto de sus hijos */
-            width: 90vw; /* Ocupa el 90% del ancho de la ventana */
-            max-width: 600px; /* Ancho máximo para pantallas grandes */
-            /* Es crucial definir una altura o un aspect-ratio */
-            /* Usamos aspect-ratio para mantener la proporción del video/imagen */
-            aspect-ratio: 4/3; /* Proporción 4:3, común para video. Ajusta si tu video es 16/9. */
-            
-            background-color: black; /* Fondo visible si el video no carga */
+            position: relative;
+            width: 90vw;
+            max-width: 600px;
+            aspect-ratio: 4/3; /* Proporción 4:3. Ajusta a 16/9 si tu cámara lo es. */
+            background-color: black;
             border: 2px solid #555;
             border-radius: 8px;
-            overflow: hidden; /* Recorta cualquier cosa que se salga del contenedor */
-            /* display: flex; justify-content: center; align-items: center;  No es estrictamente necesario aquí si video/imagen cubren 100% */
+            overflow: hidden;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-            margin-bottom: 20px; /* Espacio debajo del contenedor de la cámara */
+            margin-bottom: 20px;
+            display: flex; /* Asegura que el video se cargue y se centre */
+            justify-content: center;
+            align-items: center;
         }
 
-        /* Estilos para el video y la imagen de superposición */
-        /* Ambos deben ser absolutos y cubrir el 100% del contenedor padre */
         video, .app-overlay-image {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* Para el patrón, object-fit: fill es generalmente lo que buscas si tiene que llenar el área */
-            object-fit: fill; /* Fuerza al contenido a llenar el contenedor, distorsionando si es necesario */
+            object-fit: fill; /* Fuerza al contenido a llenar el contenedor */
         }
 
-        /* Z-index para el orden de apilamiento */
         video {
-            z-index: 1; /* El video estará debajo */
+            z-index: 1;
         }
 
         .app-overlay-image {
-            z-index: 2; /* La imagen estará encima del video */
-            pointer-events: none; /* Permite clics "a través" de la imagen a lo que hay debajo */
+            z-index: 2;
+            pointer-events: none; /* Permite clics a través de la imagen */
         }
 
         button {
-            margin-bottom: 20px; /* Espacio debajo del botón */
-            padding: 15px 30px;
-            font-size: 1.2em;
+            margin: 10px 5px; /* Espacio alrededor de los botones */
+            padding: 12px 25px; /* Ligeramente más pequeños para que quepan más */
+            font-size: 1.1em;
             cursor: pointer;
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             transition: background-color 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
         button:hover {
             background-color: #0056b3;
         }
-        canvas {
-            display: none; /* Oculta el canvas hasta que se tome una foto */
-            width: 90vw; /* El canvas también ocupa el 90% del ancho de la ventana */
-            max-width: 600px;
-            aspect-ratio: 4/3; /* Coincide con la proporción del video/contenedor */
-            margin-top: 20px; /* Espacio encima del canvas */
-            border: 2px solid #555;
-            box-sizing: border-box;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
         }
+
+        canvas {
+            display: none; /* Oculta el canvas hasta que se tome una foto temporalmente */
+        }
+
         .message {
             margin-top: 20px;
             font-size: 1.1em;
             color: #ffc107;
             text-align: center;
-            max-width: 90vw; /* Limita el ancho del mensaje */
+            max-width: 90vw;
+            margin-bottom: 20px;
+        }
+
+        /* Sección de galería de fotos */
+        .gallery-section {
+            width: 90vw;
+            max-width: 600px;
+            margin-top: 30px;
+            background-color: #222;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .gallery-controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap; /* Permite que los botones se envuelvan en pantallas pequeñas */
+            gap: 10px; /* Espacio entre los botones */
+            margin-bottom: 15px;
+        }
+
+        .thumbnails-container {
+            display: flex;
+            flex-wrap: wrap; /* Permite que las miniaturas se envuelvan */
+            gap: 10px; /* Espacio entre miniaturas */
+            justify-content: center;
+            padding: 10px 0;
+            max-height: 250px; /* Altura máxima para el scroll de miniaturas */
+            overflow-y: auto; /* Scroll para las miniaturas si hay muchas */
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #1a1a1a;
+        }
+
+        .thumbnail-item {
+            width: 80px; /* Ancho fijo para las miniaturas */
+            height: 60px; /* Altura fija para las miniaturas (ajusta si tu ratio es diferente) */
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+            object-fit: cover; /* Recorta la miniatura para que llene el espacio */
+            border-radius: 4px;
+        }
+
+        .thumbnail-item.selected {
+            border-color: #007bff; /* Borde azul para la foto seleccionada */
+            transform: scale(1.05); /* Un ligero agrandamiento */
+        }
+
+        /* Vista de foto predeterminada (ampliada) */
+        .fullscreen-photo-view {
+            display: none; /* Oculto por defecto */
+            position: fixed; /* Fijo en la ventana */
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9); /* Fondo oscuro semitransparente */
+            z-index: 1000; /* Asegura que esté por encima de todo */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .fullscreen-photo-view img {
+            max-width: 90vw;
+            max-height: 80vh; /* Ajusta para dejar espacio al botón */
+            object-fit: contain; /* Contiene la imagen sin recortar */
+            border: 3px solid #eee;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+        }
+
+        .fullscreen-photo-view button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            background-color: #dc3545; /* Botón de regresar rojo */
+        }
+        .fullscreen-photo-view button:hover {
+            background-color: #c82333;
         }
     </style>
 </head>
@@ -102,8 +181,23 @@
     </div>
 
     <button id="takePhotoButton">Tomar Foto</button>
-    <canvas id="canvas"></canvas>
-    <div id="message" class="message"></div>
+    <canvas id="canvas"></canvas> <div id="message" class="message"></div>
+
+    <div class="gallery-section">
+        <h2>Tus Fotos</h2>
+        <div class="gallery-controls">
+            <button id="selectPhotoButton" disabled>Seleccionar Foto</button>
+            <button id="deletePhotoButton" disabled>Borrar Foto</button>
+            <button id="viewPhotoButton" disabled>Ver Foto Grande</button>
+        </div>
+        <div id="thumbnailsContainer" class="thumbnails-container">
+            </div>
+    </div>
+
+    <div id="fullscreenPhotoView" class="fullscreen-photo-view">
+        <img id="fullscreenImage" src="" alt="Foto Ampliada">
+        <button id="backButton">Regresar</button>
+    </div>
 
     <script>
         const video = document.getElementById('videoElement');
@@ -113,24 +207,33 @@
         const messageDiv = document.getElementById('message');
         const cameraOverlayContainer = document.querySelector('.camera-overlay-container');
 
-        // Función para iniciar la cámara
+        const thumbnailsContainer = document.getElementById('thumbnailsContainer');
+        const selectPhotoButton = document.getElementById('selectPhotoButton');
+        const deletePhotoButton = document.getElementById('deletePhotoButton');
+        const viewPhotoButton = document.getElementById('viewPhotoButton');
+
+        const fullscreenPhotoView = document.getElementById('fullscreenPhotoView');
+        const fullscreenImage = document.getElementById('fullscreenImage');
+        const backButton = document.getElementById('backButton');
+
+        let photos = []; // Array para almacenar las URLs de las fotos
+        let selectedPhotoIndex = -1; // Índice de la foto seleccionada
+
+        // --- Funciones de la Cámara ---
         async function startCamera() {
             messageDiv.textContent = 'Solicitando acceso a la cámara...';
             try {
-                // Preferir la cámara trasera
                 const constraints = {
                     video: {
-                        facingMode: { exact: "environment" } // 'environment' para cámara trasera
+                        facingMode: { exact: "environment" } // Cámara trasera
                     }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 messageDiv.textContent = 'Cámara activada.';
-                cameraOverlayContainer.style.display = 'flex'; // Asegurarse que el contenedor sea visible
-                takePhotoButton.style.display = 'block'; // Asegúrate de que el botón sea visible
+                cameraOverlayContainer.style.display = 'flex';
+                takePhotoButton.style.display = 'block';
 
-                // Opcional: ajustar el aspect-ratio del contenedor cuando el video carga
-                // para que coincida con la resolución real de la cámara si es diferente al 4/3 por defecto
                 video.addEventListener('loadedmetadata', () => {
                     if (video.videoWidth && video.videoHeight) {
                         cameraOverlayContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
@@ -148,23 +251,18 @@
                 } else {
                     messageDiv.textContent = 'Error desconocido al iniciar la cámara. Inténtalo de nuevo.';
                 }
-                // Si la cámara falla, ocultamos el contenedor y el botón
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
             }
         }
 
-        // Event listener para el botón de tomar foto
         takePhotoButton.addEventListener('click', () => {
             if (video.srcObject) {
-                // Ajusta el tamaño del canvas al tamaño actual del video
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
 
-                // Dibujar el video
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                // Dibujar la imagen de superposición EN EL CANVAS
                 const overlayImage = document.querySelector('.app-overlay-image');
                 if (overlayImage && overlayImage.complete) {
                     context.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
@@ -172,15 +270,125 @@
                     console.warn("La imagen de superposición no está cargada o no se encontró para dibujar en el canvas.");
                 }
 
-                // Muestra la imagen tomada
-                canvas.style.display = 'block';
+                // Obtener la URL de la imagen del canvas y añadirla a la galería
+                const photoURL = canvas.toDataURL('image/png');
+                addPhotoToGallery(photoURL);
             } else {
                 messageDiv.textContent = 'La cámara no está activa para tomar una foto.';
             }
         });
 
+        // --- Funciones de Galería ---
+        function addPhotoToGallery(photoURL) {
+            photos.push(photoURL);
+            renderThumbnails();
+            messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
+        }
+
+        function renderThumbnails() {
+            thumbnailsContainer.innerHTML = ''; // Limpiar miniaturas existentes
+            photos.forEach((photoURL, index) => {
+                const img = document.createElement('img');
+                img.src = photoURL;
+                img.classList.add('thumbnail-item');
+                img.dataset.index = index; // Guardar el índice para seleccionar
+                
+                if (index === selectedPhotoIndex) {
+                    img.classList.add('selected');
+                }
+
+                img.addEventListener('click', () => {
+                    selectPhoto(index);
+                });
+                thumbnailsContainer.appendChild(img);
+            });
+            updateButtonsState(); // Actualizar el estado de los botones
+        }
+
+        function selectPhoto(index) {
+            // Deseleccionar la foto anterior si existe
+            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
+                const prevSelected = document.querySelector(`.thumbnail-item[data-index="${selectedPhotoIndex}"]`);
+                if (prevSelected) {
+                    prevSelected.classList.remove('selected');
+                }
+            }
+
+            // Seleccionar la nueva foto
+            selectedPhotoIndex = index;
+            const currentSelected = document.querySelector(`.thumbnail-item[data-index="${selectedPhotoIndex}"]`);
+            if (currentSelected) {
+                currentSelected.classList.add('selected');
+            }
+            updateButtonsState();
+        }
+
+        function deleteSelectedPhoto() {
+            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
+                const confirmDelete = confirm('¿Estás seguro de que quieres borrar la foto seleccionada?');
+                if (confirmDelete) {
+                    photos.splice(selectedPhotoIndex, 1); // Eliminar la foto del array
+                    selectedPhotoIndex = -1; // Resetear la selección
+                    renderThumbnails(); // Volver a renderizar las miniaturas
+                    messageDiv.textContent = 'Foto borrada.';
+                }
+            }
+        }
+
+        function viewSelectedPhoto() {
+            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
+                fullscreenImage.src = photos[selectedPhotoIndex];
+                fullscreenPhotoView.style.display = 'flex'; // Mostrar la vista ampliada
+                // Ocultar la cámara y la galería temporalmente
+                cameraOverlayContainer.style.display = 'none';
+                takePhotoButton.style.display = 'none';
+                document.querySelector('.gallery-section').style.display = 'none';
+            }
+        }
+
+        function hideFullscreenPhotoView() {
+            fullscreenPhotoView.style.display = 'none'; // Ocultar la vista ampliada
+            // Volver a mostrar la cámara y la galería
+            cameraOverlayContainer.style.display = 'flex';
+            takePhotoButton.style.display = 'block';
+            document.querySelector('.gallery-section').style.display = 'block';
+        }
+
+        function updateButtonsState() {
+            const hasPhotos = photos.length > 0;
+            const photoSelected = selectedPhotoIndex !== -1;
+
+            selectPhotoButton.disabled = !hasPhotos; // Deshabilita si no hay fotos
+            deletePhotoButton.disabled = !photoSelected; // Deshabilita si no hay foto seleccionada
+            viewPhotoButton.disabled = !photoSelected; // Deshabilita si no hay foto seleccionada
+        }
+
+        // --- Event Listeners de Botones de Galería ---
+        selectPhotoButton.addEventListener('click', () => {
+            // La lógica de selección se maneja al hacer clic en la miniatura.
+            // Este botón podría usarse para deseleccionar si lo deseas, o simplemente para activar
+            // visualmente los otros botones una vez que una foto está seleccionada por clic.
+            // Dejamos la función para futuras expansiones.
+            if (selectedPhotoIndex === -1 && photos.length > 0) {
+                 // Si no hay nada seleccionado, seleccionar la primera
+                selectPhoto(0);
+            } else if (selectedPhotoIndex !== -1) {
+                // Si ya hay algo seleccionado, este botón podría deseleccionar,
+                // o no hacer nada, dependiendo del UX deseado.
+                // Por ahora, solo actualiza el estado de los botones si ya está seleccionado.
+                updateButtonsState();
+            }
+        });
+
+        deletePhotoButton.addEventListener('click', deleteSelectedPhoto);
+        viewPhotoButton.addEventListener('click', viewSelectedPhoto);
+        backButton.addEventListener('click', hideFullscreenPhotoView);
+
         // Inicia la cámara cuando la página se carga
-        window.addEventListener('load', startCamera);
+        window.addEventListener('load', () => {
+            startCamera();
+            updateButtonsState(); // Actualizar estado inicial de los botones
+        });
     </script>
 </body>
 </html>
