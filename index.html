@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara Web con Superposición de Imagen</title>
+    <title>Cámara Web con Superposición de Patrón</title>
     <style>
         body {
             margin: 0;
@@ -16,44 +16,74 @@
             background-color: #333;
             color: white;
             font-family: Arial, sans-serif;
+            padding: 20px; /* Añadir algo de padding general */
+            box-sizing: border-box; /* Incluir padding en el tamaño total del body */
         }
 
         /* Contenedor principal para la cámara y la imagen superpuesta */
+        /* Este contenedor definirá el área donde se verán tanto el video como la imagen */
         .camera-overlay-container {
-            position: relative; /* Muy importante para posicionar a sus hijos */
-            width: 80vw; /* Ajusta el ancho del contenedor */
-            max-width: 600px; /* Ancho máximo para pantallas grandes */
-            aspect-ratio: 4/3; /* O el ratio que mejor se adapte a tu video/imagen */
-            background-color: black; /* Fondo del contenedor si el video no cubre todo */
+            position: relative; /* Clave para el posicionamiento absoluto de los hijos */
+            width: 90vw; /* Ocupa el 90% del ancho de la ventana */
+            max-width: 600px; /* Máximo 600px de ancho */
+            /* Es crucial definir una altura o un aspect-ratio */
+            /* Si conoces la relación de aspecto de la cámara (ej. 4:3 o 16:9), úsalo */
+            /* Por ejemplo, si es 4:3: */
+            aspect-ratio: 4/3; /* Mantiene la proporción 4:3 */
+            /* O si prefieres una altura fija o máxima: */
+            /* height: 450px; */
+            /* max-height: 70vh; */
+
+            background-color: black; /* Fondo si el video/imagen no cubre todo */
             border: 2px solid #555;
-            box-sizing: border-box;
-            display: flex; /* Para centrar el contenido si es necesario */
+            border-radius: 8px; /* Bordes redondeados */
+            overflow: hidden; /* Asegura que nada se salga del contenedor */
+            display: flex; /* Para centrar el contenido (video/imagen) */
             justify-content: center;
             align-items: center;
-            overflow: hidden; /* Asegura que el contenido no se salga */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); /* Sombra para mejor visualización */
         }
 
+        /* Estilos para el video y la imagen de superposición */
+        /* Ambos deben ser absolutos y cubrir el 100% del contenedor padre */
         video, .app-overlay-image {
-            position: absolute; /* Ambos elementos se posicionan absolutamente */
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100%; /* Ambos ocupan el 100% del contenedor padre */
-            height: 100%; /* Ambos ocupan el 100% del contenedor padre */
-            object-fit: cover; /* Para que el video/imagen cubra el espacio sin distorsionarse */
-            box-sizing: border-box; /* Incluye padding y border en el tamaño total */
+            width: 100%;
+            height: 100%;
+            /* object-fit: cover; es ideal para video, pero para una imagen patrón */
+            /* que queremos que encaje perfectamente, 'contain' o 'fill' podría ser mejor */
+            /* dependiendo de la proporción de tu imagen vs la del contenedor. */
+            /* Si la imagen debe cubrir todo el contenedor sin distorsionarse: */
+            object-fit: cover;
+            /* Si la imagen debe caber dentro del contenedor y no distorsionarse, dejando barras negras si es necesario: */
+            /* object-fit: contain; */
+            /* Si la imagen debe estirarse para llenar el contenedor: */
+            /* object-fit: fill; */
+
+            /* Aseguramos que la imagen y el video se estiren para llenar el contenedor */
+            /* Esto es crucial si la imagen es el patrón que debe llenar el área de la cámara */
+            /* Si tu imagen tiene un marco/fondo y necesitas que se recorte bien, 'cover' es mejor */
+            /* Si es un "stencil" o patrón con transparencia, 'fill' podría ser más preciso */
+            /* Vamos con 'fill' para el patrón, para asegurar que se estire y ocupe el espacio */
+            /* del contenedor, asumiendo que el patrón está diseñado para esa proporción. */
+            object-fit: fill; /* Probablemente la mejor opción para un "patrón" */
+
+            /* Aseguramos que el fondo transparente de la imagen se respete */
+            background-color: transparent;
         }
 
+        /* Z-index para el orden de apilamiento */
         video {
             z-index: 1; /* El video estará debajo */
         }
 
         .app-overlay-image {
             z-index: 2; /* La imagen estará encima del video */
-            /* Si la imagen tiene un fondo sólido, este tapará el video.
-               Si la imagen tiene un fondo transparente, el video se verá a través. */
-            pointer-events: none; /* Permite interactuar con elementos debajo de la imagen (ej. el video si se pudiera) */
-            /* Si la imagen no tiene fondo transparente, podrías añadir una opacidad: */
-            /* opacity: 0.7; */
+            pointer-events: none; /* Permite interacción con lo que hay debajo (video) */
+            /* Si la imagen original tiene fondo blanco y quieres transparencia, necesitarías preprocesarla */
+            /* como hicimos en Colab o usar filtros CSS complejos (menos robusto) */
         }
 
         button {
@@ -66,7 +96,7 @@
             border: none;
             border-radius: 5px;
             transition: background-color 0.3s ease;
-            z-index: 3; /* Para que el botón esté siempre encima de todo */
+            /* z-index: 3; No es necesario si está fuera del contenedor de superposición */
         }
         button:hover {
             background-color: #0056b3;
@@ -84,14 +114,14 @@
             font-size: 1.1em;
             color: #ffc107;
             text-align: center;
-            z-index: 3; /* Para que el mensaje esté siempre encima de todo */
+            /* z-index: 3; No es necesario si está fuera del contenedor de superposición */
         }
     </style>
 </head>
 <body>
     <div class="camera-overlay-container">
         <video id="videoElement" autoplay playsinline></video>
-        <img src="image_f2b0cc.png" alt="Dispensador de Papel" class="app-overlay-image">
+        <img src="image_f2b0cc.png" alt="Patrón de Dispensador de Papel" class="app-overlay-image">
     </div>
 
     <button id="takePhotoButton">Tomar Foto</button>
@@ -118,9 +148,17 @@
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
                 messageDiv.textContent = 'Cámara activada.';
-                // No necesitamos cambiar el display del video, el CSS ya lo maneja
-                // video.style.display = 'block';
-                // takePhotoButton.style.display = 'block'; // Asegúrate de que el botón sea visible
+                // Asegurarse de que el contenedor sea visible
+                document.querySelector('.camera-overlay-container').style.display = 'flex'; // Usar flex para centrar
+                takePhotoButton.style.display = 'block'; // Asegúrate de que el botón sea visible
+
+                // Opcional: una vez que el video cargue, ajustar el contenedor a su tamaño real
+                video.addEventListener('loadedmetadata', () => {
+                    const container = document.querySelector('.camera-overlay-container');
+                    // Si prefieres que el contenedor se ajuste al ratio del video
+                    // container.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+                });
+
             } catch (err) {
                 console.error('Error al acceder a la cámara: ', err);
                 if (err.name === 'NotAllowedError') {
@@ -132,7 +170,7 @@
                 } else {
                     messageDiv.textContent = 'Error desconocido al iniciar la cámara. Inténtalo de nuevo.';
                 }
-                // Si la cámara falla, ocultamos el contenedor para evitar un espacio vacío
+                // Si la cámara falla, ocultamos el contenedor
                 document.querySelector('.camera-overlay-container').style.display = 'none';
                 takePhotoButton.style.display = 'none';
             }
@@ -144,16 +182,29 @@
                 // Ajusta el tamaño del canvas al tamaño actual del video
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
+
+                // Dibujar el video
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Dibujar la imagen de superposición EN EL CANVAS
+                // Esto es crucial para que el patrón aparezca en la foto final.
+                const overlayImage = document.querySelector('.app-overlay-image');
+                if (overlayImage && overlayImage.complete) { // Asegurarse de que la imagen se ha cargado
+                    // Dibujar la imagen sobre el video en el canvas
+                    // Asegurarse de que la imagen ocupe el mismo espacio que el video en el canvas
+                    context.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
+                } else {
+                    console.warn("La imagen de superposición no está cargada o no se encontró para dibujar en el canvas.");
+                }
 
                 // Muestra la imagen tomada
                 canvas.style.display = 'block';
 
-                // Opcional: Descargar la imagen
+                // Opcional: Descargar la imagen (con la superposición)
                 // const image = canvas.toDataURL('image/png');
                 // const link = document.createElement('a');
                 // link.href = image;
-                // link.download = 'foto.png';
+                // link.download = 'foto_con_patron.png';
                 // link.click();
             } else {
                 messageDiv.textContent = 'La cámara no está activa para tomar una foto.';
