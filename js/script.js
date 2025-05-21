@@ -50,7 +50,7 @@ async function startCamera() {
     messageDiv.textContent = 'Solicitando acceso a la cámara...';
     try {
         const constraints = {
-            video: true {
+            video: {
                 //video: true 
                 //facingMode: "environment" 
                 facingMode: { exact: "environment" } 
