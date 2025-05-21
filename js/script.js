@@ -52,8 +52,8 @@ async function startCamera() {
         const constraints = {
             video: true {
                 //video: true 
-                facingMode: "environment" 
-                //facingMode: { exact: "environment" } 
+                //facingMode: "environment" 
+                facingMode: { exact: "environment" } 
             }
         };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
