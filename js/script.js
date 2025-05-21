@@ -118,7 +118,7 @@ takePhotoButton.addEventListener('click', () => {
         const timestamp = new Date().toISOString().replace(/[:.-]/g, ''); 
         
         // Formato final del nombre de la foto. Puedes cambiar "foto_" o "_png"
-        const photoName = `foto_${cleanedFilterName}_${timestamp}.png`;
+        //const photoName = `foto_${cleanedFilterName}_${timestamp}.png`;
 
         addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString() + ".png" });
     }
