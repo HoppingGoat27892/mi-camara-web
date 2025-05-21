@@ -134,16 +134,18 @@
         }
 
         .thumbnail-item.selected {
-            border-color: #007bff;
-            transform: scale(1.05);
+            border-color: #007bff; /* Borde azul para la foto seleccionada */
+            transform: scale(1.05); /* Un ligero agrandamiento */
         }
 
         /* Estilo para el input del nombre del ZIP */
         .zip-name-input-group {
+            margin-top: 10px; /* Un poco de espacio arriba */
             margin-bottom: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 100%; /* Asegura que ocupe el ancho disponible */
         }
         .zip-name-input-group label {
             margin-bottom: 5px;
@@ -224,14 +226,14 @@
 
     <div class="gallery-section">
         <h2>Tus Fotos</h2>
-        <div class="zip-name-input-group">
-            <label for="zipFileName">Nombre del archivo ZIP:</label>
-            <input type="text" id="zipFileName" placeholder="Ej: mis_fotos_del_proyecto">
-        </div>
-
+        
         <div class="gallery-controls">
             <button id="deletePhotoButton" disabled>Borrar Fotos Seleccionadas</button>
             <button id="viewPhotoButton" disabled>Ver Última Seleccionada</button>
+            <div class="zip-name-input-group">
+                <label for="zipFileName">Nombre del archivo ZIP:</label>
+                <input type="text" id="zipFileName" placeholder="Ej: mis_fotos_del_proyecto">
+            </div>
             <button id="downloadZipButton" disabled>Descargar Fotos Seleccionadas (ZIP)</button>
         </div>
         <div id="thumbnailsContainer" class="thumbnails-container">
@@ -255,7 +257,7 @@
         const deletePhotoButton = document.getElementById('deletePhotoButton');
         const viewPhotoButton = document.getElementById('viewPhotoButton');
         const downloadZipButton = document.getElementById('downloadZipButton');
-        const zipFileNameInput = document.getElementById('zipFileName'); // NUEVO: input de texto
+        const zipFileNameInput = document.getElementById('zipFileName');
 
         const fullscreenPhotoView = document.getElementById('fullscreenPhotoView');
         const fullscreenImage = document.getElementById('fullscreenImage');
@@ -266,8 +268,17 @@
         let clickTimer = null; 
         const DBLCLICK_THRESHOLD = 300; 
 
+        const LOCAL_STORAGE_KEY = 'camera_app_photos'; // Clave para localStorage
+
         // --- Funciones de la Cámara ---
+        let currentStream; // Para guardar la referencia al stream de la cámara
+
         async function startCamera() {
+            // Detener el stream anterior si existe
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
             messageDiv.textContent = 'Solicitando acceso a la cámara...';
             try {
                 const constraints = {
@@ -276,6 +287,7 @@
                     }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream; // Guardar la referencia al nuevo stream
                 video.srcObject = stream;
                 messageDiv.textContent = 'Cámara activada.';
                 cameraOverlayContainer.style.display = 'flex';
@@ -324,9 +336,24 @@
             }
         });
 
-        // --- Funciones de Galería ---
+        // --- Funciones de Galería y persistencia ---
+        function savePhotosToLocalStorage() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(photos));
+        }
+
+        function loadPhotosFromLocalStorage() {
+            const storedPhotos = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedPhotos) {
+                photos = JSON.parse(storedPhotos);
+            } else {
+                photos = [];
+            }
+            renderThumbnails(); // Renderizar las fotos cargadas
+        }
+
         function addPhotoToGallery(photoURL) {
             photos.push(photoURL);
+            savePhotosToLocalStorage(); // Guardar al añadir
             renderThumbnails();
             messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
         }
@@ -334,8 +361,7 @@
         function renderThumbnails() {
             thumbnailsContainer.innerHTML = ''; 
             photos.forEach((photoURL, index) => {
-                // Si la foto fue borrada y el índice ya no es válido, no la renderizamos
-                if (!photoURL) return; 
+                if (!photoURL) return; // Si la foto fue marcada como null, no la renderizamos
 
                 const img = document.createElement('img');
                 img.src = photoURL;
@@ -382,7 +408,7 @@
             renderThumbnails(); 
         }
 
-        function deleteSelectedPhotos() {
+        async function deleteSelectedPhotos() {
             if (selectedPhotoIndexes.length === 0) {
                 messageDiv.textContent = 'No hay fotos seleccionadas para borrar.';
                 return;
@@ -393,26 +419,30 @@
                 // Ordenar los índices de forma descendente para evitar problemas al borrar
                 selectedPhotoIndexes.sort((a, b) => b - a);
                 
-                // Borrar las fotos del array 'photos'
+                // Marcar las fotos para eliminación (establecer a null)
                 selectedPhotoIndexes.forEach(index => {
                     if (index < photos.length) {
-                        // Reemplazar con null o undefined para mantener los índices temporalmente
-                        // hasta la próxima reconstrucción completa o reindexación
-                        photos[index] = null; // Marcar para eliminación
+                        photos[index] = null;
                     }
                 });
 
-                // Filtrar los elementos nulos y reindexar el array 'photos'
+                // Filtrar los elementos nulos para crear un nuevo array sin los borrados
                 photos = photos.filter(photo => photo !== null);
 
                 selectedPhotoIndexes = []; // Resetear la selección
-                renderThumbnails(); // Volver a renderizar las miniaturas desde el nuevo array 'photos'
-                messageDiv.textContent = `Foto(s) borrada(s).`;
+                savePhotosToLocalStorage(); // Guardar después de borrar y reindexar
+                
+                // Reiniciar la cámara para intentar solucionar el bug de congelación
+                await startCamera(); 
+
+                renderThumbnails(); 
+                messageDiv.textContent = `Foto(s) borrada(s) y cámara reiniciada.`;
             }
         }
 
         function viewPhotoAtIndex(index) {
-            if (index !== -1 && index < photos.length && photos[index] !== null) { // Asegurar que la foto exista y no sea null
+            // Asegurarse de que el índice sea válido y la foto no sea null
+            if (index !== -1 && index < photos.length && photos[index] !== null) { 
                 fullscreenImage.src = photos[index];
                 fullscreenPhotoView.style.display = 'flex';
                 cameraOverlayContainer.style.display = 'none';
@@ -425,8 +455,16 @@
         
         function viewLastSelectedPhoto() {
             if (selectedPhotoIndexes.length > 0) {
-                const lastSelectedIndex = selectedPhotoIndexes[selectedPhotoIndexes.length - 1];
-                viewPhotoAtIndex(lastSelectedIndex);
+                // Obtener el índice de la última foto seleccionada que aún existe en `photos`
+                const lastExistingSelectedPhotoIndex = selectedPhotoIndexes
+                    .reverse() // Empezar por el final para encontrar la "última"
+                    .find(idx => idx < photos.length && photos[idx] !== null); 
+                
+                if (lastExistingSelectedPhotoIndex !== undefined) {
+                     viewPhotoAtIndex(lastExistingSelectedPhotoIndex);
+                } else {
+                    messageDiv.textContent = 'Ninguna de las fotos seleccionadas existe ya.';
+                }
             } else {
                 messageDiv.textContent = 'Por favor, selecciona una foto para ver.';
             }
@@ -445,7 +483,8 @@
 
             deletePhotoButton.disabled = !hasSelectedPhotos;
             viewPhotoButton.disabled = !hasSelectedPhotos;
-            downloadZipButton.disabled = !hasPhotos; 
+            downloadZipButton.disabled = !hasSelectedPhotos; // Se habilita solo si hay fotos seleccionadas
+            // Si quieres descargar TODAS las fotos si no hay seleccionadas, cambia a !hasPhotos
         }
 
         // --- Funciones de Descarga ZIP ---
@@ -455,20 +494,20 @@
                 return;
             }
 
-            // Obtener el nombre del archivo del input, o usar un nombre por defecto
             let zipName = zipFileNameInput.value.trim();
             if (zipName === '') {
                 zipName = 'fotos_seleccionadas';
             }
-            zipName = zipName.replace(/[^a-zA-Z0-9_.-]/g, '_'); // Limpiar caracteres no válidos para nombres de archivo
+            zipName = zipName.replace(/[^a-zA-Z0-9_.-]/g, '_'); 
             zipName += '.zip';
 
             messageDiv.textContent = `Preparando ZIP de ${selectedPhotoIndexes.length} foto(s) seleccionada(s)... Esto puede tomar un momento.`;
             const zip = new JSZip();
             
             let photoCounter = 0;
+            // Solo las fotos que están en el array selectedPhotoIndexes y existen en 'photos'
             for (const index of selectedPhotoIndexes) {
-                if (index < photos.length && photos[index] !== null) { // Asegurarse de que el índice sea válido y la foto exista
+                if (index < photos.length && photos[index] !== null) { 
                     photoCounter++;
                     const photoURL = photos[index];
                     const base64Data = photoURL.split(',')[1];
@@ -479,7 +518,7 @@
 
             try {
                 const zipBlob = await zip.generateAsync({ type: "blob" });
-                saveAs(zipBlob, zipName); // Usar el nombre personalizado
+                saveAs(zipBlob, zipName); 
                 messageDiv.textContent = `ZIP con ${selectedPhotoIndexes.length} foto(s) seleccionada(s) descargado como "${zipName}".`;
             } catch (error) {
                 console.error("Error al generar el ZIP:", error);
@@ -509,13 +548,20 @@
         downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
-        // Inicia la cámara cuando la página se carga
+        // Inicia la cámara y carga las fotos al cargar la página
         window.addEventListener('load', () => {
-            startCamera();
-            updateButtonsState();
-            // Establecer un nombre por defecto en el input al cargar la página
+            loadPhotosFromLocalStorage(); // Cargar fotos primero
+            startCamera(); // Luego iniciar la cámara
             zipFileNameInput.value = 'mis_fotos'; 
         });
+
+        // Detener la cámara al cerrar la pestaña o navegar
+        window.addEventListener('beforeunload', () => {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+        });
+
     </script>
 </body>
 </html>
