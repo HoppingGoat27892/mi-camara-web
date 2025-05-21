@@ -38,7 +38,7 @@ async function startCamera() {
     try {
         const constraints = {
             video: {
-                facingMode: "environment" // <<-- ¡CORRECCIÓN CÁMARA TRASERA! -->>
+                facingMode: "environment" // <<-- Intenta cámara trasera primero
             }
         };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -47,6 +47,37 @@ async function startCamera() {
         video.play(); // Asegúrate de que el video se reproduzca
         console.log("Cámara iniciada con éxito.");
         messageElement.textContent = ''; // Limpiar mensajes de error anteriores
+
+        // === Lógica de rotación de video para móvil ===
+        // Esto es crucial para la vista previa y puede depender de la orientación del dispositivo
+        video.onloadedmetadata = () => {
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            console.log(`Video metadata: ${videoWidth}x${videoHeight}`);
+
+            // Detectar si el video está en orientación de retrato pero con width > height (común en algunas cámaras traseras de móvil)
+            // O si está en horizontal pero el dispositivo está en vertical
+            if (window.innerHeight > window.innerWidth) { // El dispositivo está en modo retrato
+                if (videoWidth > videoHeight) { // El stream del video es horizontal
+                    console.log("Detectado video horizontal en modo retrato del dispositivo. Rotando...");
+                    // Rotar el video 90 grados y voltearlo si es necesario para la selfie
+                    // Para cámara trasera, no voltear horizontalmente
+                    video.style.transform = 'rotate(90deg) scaleX(1)';
+                    // Ajustar el contenedor para que no se recorte excesivamente si el video es más largo
+                    // Esto es más un hack para que el video se vea bien, el CSS es clave
+                    // La altura del contenedor debería basarse en el ancho para la proporción 9:16
+                    // El CSS .camera-overlay-container con padding-top es mejor para esto.
+                } else {
+                    console.log("Video vertical en modo retrato. Sin rotación.");
+                    video.style.transform = 'rotate(0deg) scaleX(1)';
+                }
+            } else { // El dispositivo está en modo paisaje
+                console.log("Dispositivo en modo paisaje. Sin rotación específica del video.");
+                video.style.transform = 'rotate(0deg) scaleX(1)'; // Asegurarse de que no haya rotación
+            }
+        };
+
+
     } catch (err) {
         console.error('Error al acceder a la cámara: ', err);
         messageElement.textContent = `Error al acceder a la cámara: ${err.name}. Asegúrate de permitir el acceso.`;
@@ -61,6 +92,17 @@ async function startCamera() {
                 video.play();
                 console.log("Cámara iniciada con restricciones relajadas.");
                 messageElement.textContent = 'Cámara iniciada con éxito (usando cámara predeterminada).';
+                
+                // Si la cámara relajada es la frontal (user), aplicar flip horizontal
+                video.onloadedmetadata = () => {
+                    if (stream.getVideoTracks()[0].getSettings().facingMode === 'user') {
+                        console.log("Cámara frontal detectada, aplicando volteo horizontal.");
+                        video.style.transform = 'scaleX(-1)'; // Voltear horizontalmente
+                    } else {
+                        video.style.transform = 'scaleX(1)'; // Asegurarse de que no haya volteo
+                    }
+                };
+
             } catch (relaxedErr) {
                 console.error('Error al acceder a la cámara con restricciones relajadas: ', relaxedErr);
                 messageElement.textContent = `Error al acceder a la cámara: ${relaxedErr.name}. No se pudo iniciar la cámara.`;
@@ -69,6 +111,7 @@ async function startCamera() {
         console.log("Fallo al iniciar la cámara.");
     }
 }
+
 
 function captureFrameWithOverlay() {
     console.log("captureFrameWithOverlay() llamada.");
@@ -86,6 +129,7 @@ function captureFrameWithOverlay() {
     const context = canvas.getContext('2d');
 
     // Dibuja el frame del video en el canvas
+    // Si el video está rotado en CSS para visualización, aquí se dibuja en su orientación nativa
     context.drawImage(video, 0, 0, videoWidth, videoHeight);
 
     // Dibuja el overlay si está visible
@@ -156,7 +200,8 @@ function renderThumbnails() {
         checkbox.type = 'checkbox';
         checkbox.classList.add('thumbnail-checkbox');
         checkbox.checked = photo.isSelected;
-        checkbox.addEventListener('change', () => {
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation(); // Evita que el clic en el checkbox active el evento del div
             photo.isSelected = checkbox.checked;
             updateButtonsState();
             savePhotosToLocalStorage(); // Guardar el estado de selección
@@ -165,13 +210,43 @@ function renderThumbnails() {
         const viewButton = document.createElement('button');
         viewButton.textContent = 'Ver';
         viewButton.classList.add('view-button');
-        viewButton.addEventListener('click', () => {
+        // Lo mantengo por si quieres un botón explícito para ver
+        viewButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita que el clic en el botón active el evento del div
             showFullscreenPhoto(photo.url);
         });
         
         thumbnailDiv.appendChild(img);
         thumbnailDiv.appendChild(checkbox);
         thumbnailDiv.appendChild(viewButton);
+        
+        // <<-- CORRECCIÓN: Lógica para un clic (seleccionar) y doble clic (ver) -->>
+        let clickTimer = null;
+        thumbnailDiv.addEventListener('click', () => {
+            if (clickTimer === null) {
+                clickTimer = setTimeout(() => {
+                    // Primer clic: seleccionar/deseleccionar
+                    checkbox.checked = !checkbox.checked;
+                    photo.isSelected = checkbox.checked;
+                    updateButtonsState();
+                    savePhotosToLocalStorage();
+                    clickTimer = null;
+                }, 200); // Espera 200ms para ver si hay un segundo clic
+            } else {
+                // Segundo clic: ver foto
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                showFullscreenPhoto(photo.url);
+            }
+        });
+        // Si el usuario toca y arrastra (en móvil), no queremos que se active el clic
+        thumbnailDiv.addEventListener('touchend', (e) => {
+            // Prevenir el doble clic si el evento de touch termina y luego se activa el clic
+            // Esto es un poco más complejo en touch. La lógica de clickTimer arriba es más robusta.
+            // Asegurarse que el evento touch no active un click fantasma.
+            e.preventDefault(); 
+        });
+
         thumbnailsContainer.appendChild(thumbnailDiv);
     });
 }
@@ -214,7 +289,7 @@ function loadSelectedOverlay() {
         applySelectedOverlay();
     } else {
         // Si no hay selección guardada, establece el valor por defecto (Patrón Dispensador)
-        overlaySelect.value = "assets/images/image_f2b0cc.png";
+        overlaySelect.value = "assets/images/image_f2b0cc.png"; //
         applySelectedOverlay();
     }
 }
@@ -226,7 +301,6 @@ takePhotoButton.addEventListener('click', () => {
     const photoURL = captureFrameWithOverlay();
     if (photoURL) {
         console.log("Foto capturada, URL generada.");
-        // <<-- CORRECCIÓN DEL NOMBRE DE ARCHIVO (Referencia al problema de 'cleanedFilterName') -->>
         addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString() + ".png" }); 
         messageElement.textContent = '¡Foto tomada!';
     } else {
