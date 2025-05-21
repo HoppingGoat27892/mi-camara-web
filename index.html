@@ -335,6 +335,69 @@
             background-color: #dc3545;
         }
 
+        /* Estilos para el Modal de Confirmación */
+        .modal-overlay {
+            display: none; /* Oculto por defecto */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Fondo semi-transparente */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Asegura que esté por encima de todo lo demás */
+        }
+
+        .modal-content {
+            background-color: #333;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid #555;
+        }
+
+        #modalMessage {
+            font-size: 1.2em;
+            margin-bottom: 25px;
+            color: #eee;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Espacio entre los botones */
+        }
+
+        .modal-buttons button {
+            padding: 10px 25px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-buttons .confirm-button {
+            background-color: #dc3545; /* Rojo para confirmar borrado */
+            color: white;
+            border: none;
+        }
+        .modal-buttons .confirm-button:hover {
+            background-color: #c82333;
+        }
+
+        .modal-buttons .cancel-button {
+            background-color: #6c757d; /* Gris para cancelar */
+            color: white;
+            border: none;
+        }
+        .modal-buttons .cancel-button:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -392,6 +455,16 @@
         <button id="backButton">Regresar</button>
     </div>
 
+    <div id="confirmationModal" class="modal-overlay">
+        <div class="modal-content">
+            <p id="modalMessage"></p>
+            <div class="modal-buttons">
+                <button id="modalConfirmButton" class="confirm-button">Sí, Borrar</button>
+                <button id="modalCancelButton" class="cancel-button">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const video = document.getElementById('videoElement');
         const takePhotoButton = document.getElementById('takePhotoButton');
@@ -406,7 +479,6 @@
         const overlaySelect = document.getElementById('overlaySelect'); 
 
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
-        // REINTRODUCIDO: Botón para borrar seleccionadas
         const deleteSelectedPhotosButton = document.getElementById('deleteSelectedPhotosButton'); 
         const deleteAllPhotosButton = document.getElementById('deleteAllPhotosButton'); 
         const downloadZipButton = document.getElementById('downloadZipButton');
@@ -415,6 +487,12 @@
         const fullscreenPhotoView = document.getElementById('fullscreenPhotoView');
         const fullscreenImage = document.getElementById('fullscreenImage');
         const backButton = document.getElementById('backButton');
+
+        // Nuevas constantes para el modal
+        const confirmationModal = document.getElementById('confirmationModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalConfirmButton = document.getElementById('modalConfirmButton');
+        const modalCancelButton = document.getElementById('modalCancelButton');
 
         // Estos elementos no se usarán por ahora, pero se mantienen por si se retoma Python
         const ocrResultsContainer = document.getElementById('ocrResultsContainer');
@@ -667,18 +745,52 @@
             } else {
                 selectedPhotoIndexes.push(index);
             }
-            renderThumbnails(); // Para actualizar los bordes de selección
+            // No llamar a renderThumbnails() aquí para evitar recrear todos los elementos DOM
+            // En su lugar, solo actualiza la clase CSS
+            const thumbnail = document.querySelector(`.thumbnail-item[data-index="${index}"]`);
+            if (thumbnail) {
+                thumbnail.classList.toggle('selected', selectedPhotoIndexes.includes(index));
+            }
         }
 
-        // FUNCIÓN RESTAURADA: Borrar Fotos Seleccionadas
+        // Función para mostrar el modal de confirmación
+        // Devuelve una Promesa que se resuelve a true (confirmar) o false (cancelar)
+        function showConfirmationModal(message) {
+            return new Promise((resolve) => {
+                modalMessage.textContent = message;
+                confirmationModal.style.display = 'flex'; // Mostrar el overlay
+
+                const handleConfirm = () => {
+                    confirmationModal.style.display = 'none';
+                    modalConfirmButton.removeEventListener('click', handleConfirm);
+                    modalCancelButton.removeEventListener('click', handleCancel);
+                    resolve(true); // El usuario confirmó
+                };
+
+                const handleCancel = () => {
+                    confirmationModal.style.display = 'none';
+                    modalConfirmButton.removeEventListener('click', handleConfirm);
+                    modalCancelButton.removeEventListener('click', handleCancel);
+                    resolve(false); // El usuario canceló
+                };
+
+                modalConfirmButton.addEventListener('click', handleConfirm);
+                modalCancelButton.addEventListener('click', handleCancel);
+            });
+        }
+
+
+        // FUNCIÓN RESTAURADA Y MODIFICADA: Borrar Fotos Seleccionadas
         async function deleteSelectedPhotos() {
             if (selectedPhotoIndexes.length === 0) {
                 messageDiv.textContent = 'No hay fotos seleccionadas para borrar.';
                 return;
             }
 
-            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`);
-            if (confirmDelete) {
+            const confirmMessage = `¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`;
+            const confirmed = await showConfirmationModal(confirmMessage); // Usar el modal
+
+            if (confirmed) {
                 // Ordenar los índices de mayor a menor para evitar problemas al eliminar elementos del array
                 selectedPhotoIndexes.sort((a, b) => b - a); 
                 
@@ -695,22 +807,25 @@
                 selectedPhotoIndexes = []; // Limpiar las selecciones después de borrar
                 savePhotosToLocalStorage(); 
                 
-                // Reiniciar la cámara y re-renderizar para reflejar los cambios
-                await startCamera(); 
-                renderThumbnails(); 
+                await startCamera(); // Reiniciar la cámara si es necesario
+                renderThumbnails(); // Re-renderizar para reflejar los cambios
                 messageDiv.textContent = `Foto(s) borrada(s) y cámara reiniciada.`;
+            } else {
+                messageDiv.textContent = 'Borrado cancelado.';
             }
         }
 
-        // FUNCIÓN: Borrar todas las fotos
+        // FUNCIÓN MODIFICADA: Borrar todas las fotos
         async function deleteAllPhotos() {
             if (photos.length === 0) {
                 messageDiv.textContent = 'No hay fotos para borrar.';
                 return;
             }
 
-            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar TODAS las ${photos.length} fotos? Esta acción no se puede deshacer.`);
-            if (confirmDelete) {
+            const confirmMessage = `¿Estás seguro de que quieres borrar TODAS las ${photos.length} fotos? Esta acción no se puede deshacer.`;
+            const confirmed = await showConfirmationModal(confirmMessage); // Usar el modal
+
+            if (confirmed) {
                 photos = []; // Vacía el array de fotos
                 selectedPhotoIndexes = []; // Vacía las selecciones
                 savePhotosToLocalStorage(); // Guarda el estado vacío en Local Storage
@@ -718,6 +833,8 @@
                 await startCamera(); // Opcional: reiniciar la cámara
                 renderThumbnails(); // Re-renderiza la galería (ahora vacía)
                 messageDiv.textContent = `Todas las fotos han sido borradas y la cámara reiniciada.`;
+            } else {
+                messageDiv.textContent = 'Borrado cancelado.';
             }
         }
         
@@ -830,7 +947,6 @@
 
 
         // --- Event Listeners Globales ---
-        // RESTAURADO: Event listener para borrar fotos seleccionadas
         deleteSelectedPhotosButton.addEventListener('click', deleteSelectedPhotos); 
         deleteAllPhotosButton.addEventListener('click', deleteAllPhotos); 
         downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
