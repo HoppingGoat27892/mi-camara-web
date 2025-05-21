@@ -54,7 +54,7 @@
 
         .app-overlay-image {
             z-index: 2;
-            pointer-events: none;
+            pointer-events: none; /* Permite clics a través de la imagen */
         }
 
         button {
@@ -89,6 +89,52 @@
             max-width: 90vw;
             margin-bottom: 20px;
         }
+
+        /* Controles de la cámara (para el desplegable de overlay) */
+        .camera-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px; /* Espacio debajo de los controles de la cámara */
+            width: 90vw;
+            max-width: 600px;
+        }
+
+        .overlay-select-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .overlay-select-group label {
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #bbb;
+        }
+
+        .overlay-select-group select {
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background-color: #444;
+            color: white;
+            font-size: 1em;
+            width: 80%;
+            max-width: 250px;
+            box-sizing: border-box;
+            appearance: none; /* Quitar estilo nativo en algunos navegadores */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); /* Flecha personalizada */
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            cursor: pointer;
+        }
+        .overlay-select-group select option {
+            background-color: #444; /* Fondo para las opciones */
+            color: white;
+        }
+
 
         /* Sección de galería de fotos */
         .gallery-section {
@@ -140,12 +186,12 @@
 
         /* Estilo para el input del nombre del ZIP */
         .zip-name-input-group {
-            margin-top: 10px; /* Un poco de espacio arriba */
-            margin-bottom: 15px;
+            margin-top: 10px; 
+            margin-bottom: 15px; /* Espacio antes del botón de descarga */
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100%; /* Asegura que ocupe el ancho disponible */
+            width: 100%; 
         }
         .zip-name-input-group label {
             margin-bottom: 5px;
@@ -161,7 +207,7 @@
             font-size: 1em;
             width: 80%;
             max-width: 250px;
-            box-sizing: border-box; /* Incluir padding en el width */
+            box-sizing: border-box;
         }
         .zip-name-input-group input[type="text"]::placeholder {
             color: #888;
@@ -217,10 +263,22 @@
 <body>
     <div class="camera-overlay-container">
         <video id="videoElement" autoplay playsinline></video>
-        <img src="image_f2b0cc.png" alt="Patrón de Dispensador de Papel" class="app-overlay-image">
+        <img id="appOverlayImage" src="image_f2b0cc.png" alt="Patrón de Dispensador de Papel" class="app-overlay-image">
     </div>
 
-    <button id="takePhotoButton">Tomar Foto</button>
+    <div class="camera-controls">
+        <div class="overlay-select-group">
+            <label for="overlaySelect">Seleccionar Patrón:</label>
+            <select id="overlaySelect">
+                <option value="">--- Sin Patrón ---</option>
+                <option value="image_f2b0cc.png" selected>Patrón Dispensador</option>
+                <option value="overlay_example2.png">Patrón de Cuadros (Ej.)</option> 
+                <option value="overlay_example3.png">Patrón de Círculos (Ej.)</option>
+            </select>
+        </div>
+        <button id="takePhotoButton">Tomar Foto</button>
+    </div>
+    
     <canvas id="canvas"></canvas>
     <div id="message" class="message"></div>
 
@@ -253,6 +311,9 @@
         const messageDiv = document.getElementById('message');
         const cameraOverlayContainer = document.querySelector('.camera-overlay-container');
 
+        const appOverlayImage = document.getElementById('appOverlayImage'); // Referencia a la imagen de superposición
+        const overlaySelect = document.getElementById('overlaySelect'); // Referencia al nuevo select
+
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
         const deletePhotoButton = document.getElementById('deletePhotoButton');
         const viewPhotoButton = document.getElementById('viewPhotoButton');
@@ -263,18 +324,18 @@
         const fullscreenImage = document.getElementById('fullscreenImage');
         const backButton = document.getElementById('backButton');
 
-        let photos = []; // Array para almacenar las URLs de las fotos (Base64)
+        let photos = []; 
         let selectedPhotoIndexes = []; 
         let clickTimer = null; 
         const DBLCLICK_THRESHOLD = 300; 
 
-        const LOCAL_STORAGE_KEY = 'camera_app_photos'; // Clave para localStorage
+        const LOCAL_STORAGE_KEY = 'camera_app_photos'; 
+        const LOCAL_STORAGE_OVERLAY_KEY = 'camera_app_selected_overlay'; // Nueva clave para el overlay
 
         // --- Funciones de la Cámara ---
-        let currentStream; // Para guardar la referencia al stream de la cámara
+        let currentStream; 
 
         async function startCamera() {
-            // Detener el stream anterior si existe
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
@@ -287,7 +348,7 @@
                     }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                currentStream = stream; // Guardar la referencia al nuevo stream
+                currentStream = stream; 
                 video.srcObject = stream;
                 messageDiv.textContent = 'Cámara activada.';
                 cameraOverlayContainer.style.display = 'flex';
@@ -322,11 +383,11 @@
 
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                const overlayImage = document.querySelector('.app-overlay-image');
-                if (overlayImage && overlayImage.complete) {
-                    context.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
+                // Solo dibujar la imagen de superposición si está visible
+                if (appOverlayImage.style.display !== 'none' && appOverlayImage.complete) {
+                    context.drawImage(appOverlayImage, 0, 0, canvas.width, canvas.height);
                 } else {
-                    console.warn("La imagen de superposición no está cargada o no se encontró para dibujar en el canvas.");
+                    console.warn("La imagen de superposición no está visible o no se encontró para dibujar en el canvas.");
                 }
 
                 const photoURL = canvas.toDataURL('image/png');
@@ -348,12 +409,31 @@
             } else {
                 photos = [];
             }
-            renderThumbnails(); // Renderizar las fotos cargadas
+            renderThumbnails(); 
         }
+
+        // Función para guardar el overlay seleccionado
+        function saveSelectedOverlay() {
+            localStorage.setItem(LOCAL_STORAGE_OVERLAY_KEY, overlaySelect.value);
+        }
+
+        // Función para cargar el overlay seleccionado
+        function loadSelectedOverlay() {
+            const storedOverlay = localStorage.getItem(LOCAL_STORAGE_OVERLAY_KEY);
+            if (storedOverlay !== null) {
+                overlaySelect.value = storedOverlay;
+                applySelectedOverlay(); // Aplicar la selección al cargar
+            } else {
+                // Si no hay nada guardado, asegura que la opción por defecto esté seleccionada
+                overlaySelect.value = "image_f2b0cc.png"; 
+                applySelectedOverlay(); // Aplicar el overlay por defecto
+            }
+        }
+
 
         function addPhotoToGallery(photoURL) {
             photos.push(photoURL);
-            savePhotosToLocalStorage(); // Guardar al añadir
+            savePhotosToLocalStorage(); 
             renderThumbnails();
             messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
         }
@@ -361,7 +441,7 @@
         function renderThumbnails() {
             thumbnailsContainer.innerHTML = ''; 
             photos.forEach((photoURL, index) => {
-                if (!photoURL) return; // Si la foto fue marcada como null, no la renderizamos
+                if (!photoURL) return; 
 
                 const img = document.createElement('img');
                 img.src = photoURL;
@@ -416,38 +496,33 @@
 
             const confirmDelete = confirm(`¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`);
             if (confirmDelete) {
-                // Ordenar los índices de forma descendente para evitar problemas al borrar
                 selectedPhotoIndexes.sort((a, b) => b - a);
                 
-                // Marcar las fotos para eliminación (establecer a null)
                 selectedPhotoIndexes.forEach(index => {
                     if (index < photos.length) {
                         photos[index] = null;
                     }
                 });
 
-                // Filtrar los elementos nulos para crear un nuevo array sin los borrados
                 photos = photos.filter(photo => photo !== null);
 
-                selectedPhotoIndexes = []; // Resetear la selección
-                savePhotosToLocalStorage(); // Guardar después de borrar y reindexar
+                selectedPhotoIndexes = []; 
+                savePhotosToLocalStorage(); 
                 
-                // Reiniciar la cámara para intentar solucionar el bug de congelación
-                await startCamera(); 
-
+                await startCamera(); // Reiniciar la cámara para intentar solucionar el bug
                 renderThumbnails(); 
                 messageDiv.textContent = `Foto(s) borrada(s) y cámara reiniciada.`;
             }
         }
 
         function viewPhotoAtIndex(index) {
-            // Asegurarse de que el índice sea válido y la foto no sea null
             if (index !== -1 && index < photos.length && photos[index] !== null) { 
                 fullscreenImage.src = photos[index];
                 fullscreenPhotoView.style.display = 'flex';
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
                 document.querySelector('.gallery-section').style.display = 'none';
+                document.querySelector('.camera-controls').style.display = 'none'; // Ocultar también los controles de la cámara
             } else {
                 messageDiv.textContent = 'No se encontró la foto para ver.';
             }
@@ -455,9 +530,8 @@
         
         function viewLastSelectedPhoto() {
             if (selectedPhotoIndexes.length > 0) {
-                // Obtener el índice de la última foto seleccionada que aún existe en `photos`
                 const lastExistingSelectedPhotoIndex = selectedPhotoIndexes
-                    .reverse() // Empezar por el final para encontrar la "última"
+                    .reverse() 
                     .find(idx => idx < photos.length && photos[idx] !== null); 
                 
                 if (lastExistingSelectedPhotoIndex !== undefined) {
@@ -475,6 +549,7 @@
             cameraOverlayContainer.style.display = 'flex';
             takePhotoButton.style.display = 'block';
             document.querySelector('.gallery-section').style.display = 'block';
+            document.querySelector('.camera-controls').style.display = 'flex'; // Mostrar de nuevo los controles de la cámara
         }
 
         function updateButtonsState() {
@@ -483,8 +558,7 @@
 
             deletePhotoButton.disabled = !hasSelectedPhotos;
             viewPhotoButton.disabled = !hasSelectedPhotos;
-            downloadZipButton.disabled = !hasSelectedPhotos; // Se habilita solo si hay fotos seleccionadas
-            // Si quieres descargar TODAS las fotos si no hay seleccionadas, cambia a !hasPhotos
+            downloadZipButton.disabled = !hasSelectedPhotos; 
         }
 
         // --- Funciones de Descarga ZIP ---
@@ -505,7 +579,6 @@
             const zip = new JSZip();
             
             let photoCounter = 0;
-            // Solo las fotos que están en el array selectedPhotoIndexes y existen en 'photos'
             for (const index of selectedPhotoIndexes) {
                 if (index < photos.length && photos[index] !== null) { 
                     photoCounter++;
@@ -541,6 +614,19 @@
             return new Blob(byteArrays, { type: mimeType });
         }
 
+        // --- Funciones de Selección de Overlay ---
+        function applySelectedOverlay() {
+            const selectedValue = overlaySelect.value;
+            if (selectedValue === '') {
+                appOverlayImage.style.display = 'none'; // Ocultar la imagen
+                appOverlayImage.src = ''; // Limpiar el src
+            } else {
+                appOverlayImage.src = selectedValue;
+                appOverlayImage.style.display = 'block'; // Mostrar la imagen
+            }
+            saveSelectedOverlay(); // Guardar la selección en localStorage
+        }
+
 
         // --- Event Listeners Globales ---
         deletePhotoButton.addEventListener('click', deleteSelectedPhotos);
@@ -548,10 +634,13 @@
         downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
+        overlaySelect.addEventListener('change', applySelectedOverlay); // Nuevo event listener para el select
+
         // Inicia la cámara y carga las fotos al cargar la página
         window.addEventListener('load', () => {
-            loadPhotosFromLocalStorage(); // Cargar fotos primero
-            startCamera(); // Luego iniciar la cámara
+            loadPhotosFromLocalStorage(); // Cargar fotos
+            loadSelectedOverlay(); // Cargar la selección del overlay
+            startCamera(); // Iniciar la cámara
             zipFileNameInput.value = 'mis_fotos'; 
         });
 
