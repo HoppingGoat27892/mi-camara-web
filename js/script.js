@@ -38,7 +38,7 @@ async function startCamera() {
     try {
         const constraints = {
             video: {
-                facingMode: "environment" // <<-- Intenta cámara trasera primero
+                facingMode: "environment" // <-- Intenta cámara trasera primero
             }
         };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -51,30 +51,35 @@ async function startCamera() {
         // === Lógica de rotación de video para móvil ===
         // Esto es crucial para la vista previa y puede depender de la orientación del dispositivo
         video.onloadedmetadata = () => {
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-            console.log(`Video metadata: ${videoWidth}x${videoHeight}`);
+            const videoTrack = stream.getVideoTracks()[0];
+            const settings = videoTrack.getSettings();
+            const { width, height, facingMode } = settings;
+            console.log(`Video metadata: ${width}x${height}, Facing Mode: ${facingMode}`);
 
-            // Detectar si el video está en orientación de retrato pero con width > height (común en algunas cámaras traseras de móvil)
-            // O si está en horizontal pero el dispositivo está en vertical
-            if (window.innerHeight > window.innerWidth) { // El dispositivo está en modo retrato
-                if (videoWidth > videoHeight) { // El stream del video es horizontal
-                    console.log("Detectado video horizontal en modo retrato del dispositivo. Rotando...");
-                    // Rotar el video 90 grados y voltearlo si es necesario para la selfie
-                    // Para cámara trasera, no voltear horizontalmente
-                    video.style.transform = 'rotate(90deg) scaleX(1)';
-                    // Ajustar el contenedor para que no se recorte excesivamente si el video es más largo
-                    // Esto es más un hack para que el video se vea bien, el CSS es clave
-                    // La altura del contenedor debería basarse en el ancho para la proporción 9:16
-                    // El CSS .camera-overlay-container con padding-top es mejor para esto.
-                } else {
-                    console.log("Video vertical en modo retrato. Sin rotación.");
-                    video.style.transform = 'rotate(0deg) scaleX(1)';
+            // Determinar si el video necesita rotación para verse correctamente en la orientación del dispositivo
+            // Si el video es más ancho que alto (horizontal) y la ventana es más alta que ancha (vertical)
+            if (width > height && window.innerHeight > window.innerWidth) {
+                console.log("Detectado video horizontal en modo retrato del dispositivo. Aplicando rotación 90deg.");
+                video.style.transform = 'rotate(90deg)';
+                // Si es cámara frontal, también voltear horizontalmente
+                if (facingMode === 'user') {
+                    video.style.transform += ' scaleX(-1)';
                 }
-            } else { // El dispositivo está en modo paisaje
-                console.log("Dispositivo en modo paisaje. Sin rotación específica del video.");
-                video.style.transform = 'rotate(0deg) scaleX(1)'; // Asegurarse de que no haya rotación
+            } else if (width < height && window.innerWidth > window.innerHeight) { // Video vertical en modo paisaje
+                console.log("Detectado video vertical en modo paisaje del dispositivo. Aplicando rotación -90deg.");
+                video.style.transform = 'rotate(-90deg)';
+                if (facingMode === 'user') {
+                    video.style.transform += ' scaleX(-1)';
+                }
+            } else {
+                console.log("Video y dispositivo en la misma orientación. Sin rotación.");
+                video.style.transform = 'none'; // Asegurarse de que no haya transformaciones residuales
+                if (facingMode === 'user') {
+                    video.style.transform = 'scaleX(-1)'; // Solo volteo horizontal para selfie
+                }
             }
+            // Asegurarse que el overlay también se ajuste a la rotación si es necesario
+            appOverlayImage.style.transform = video.style.transform;
         };
 
 
@@ -93,13 +98,17 @@ async function startCamera() {
                 console.log("Cámara iniciada con restricciones relajadas.");
                 messageElement.textContent = 'Cámara iniciada con éxito (usando cámara predeterminada).';
                 
-                // Si la cámara relajada es la frontal (user), aplicar flip horizontal
                 video.onloadedmetadata = () => {
-                    if (stream.getVideoTracks()[0].getSettings().facingMode === 'user') {
+                    const videoTrack = stream.getVideoTracks()[0];
+                    const settings = videoTrack.getSettings();
+                    // Si la cámara relajada es la frontal (user), aplicar flip horizontal
+                    if (settings.facingMode === 'user') {
                         console.log("Cámara frontal detectada, aplicando volteo horizontal.");
                         video.style.transform = 'scaleX(-1)'; // Voltear horizontalmente
+                        appOverlayImage.style.transform = 'scaleX(-1)';
                     } else {
-                        video.style.transform = 'scaleX(1)'; // Asegurarse de que no haya volteo
+                        video.style.transform = 'none'; // Asegurarse de que no haya volteo
+                        appOverlayImage.style.transform = 'none';
                     }
                 };
 
@@ -129,22 +138,49 @@ function captureFrameWithOverlay() {
     const context = canvas.getContext('2d');
 
     // Dibuja el frame del video en el canvas
-    // Si el video está rotado en CSS para visualización, aquí se dibuja en su orientación nativa
+    // Si el video fue rotado en CSS para visualización, aquí se dibuja en su orientación nativa
+    // Si se aplicó un transform en el video (rotate, scaleX), debemos aplicarlo al contexto del canvas
+    // para que la imagen capturada refleje lo que el usuario ve.
+    context.save(); // Guarda el estado actual del contexto
+    const transform = video.style.transform;
+    if (transform.includes('rotate(90deg)')) {
+        context.translate(canvas.width, 0);
+        context.rotate(Math.PI / 2);
+    } else if (transform.includes('rotate(-90deg)')) {
+        context.translate(0, canvas.height);
+        context.rotate(-Math.PI / 2);
+    }
+    if (transform.includes('scaleX(-1)')) {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+    }
     context.drawImage(video, 0, 0, videoWidth, videoHeight);
+    context.restore(); // Restaura el estado del contexto
 
     // Dibuja el overlay si está visible
     if (appOverlayImage.style.display !== 'none' && appOverlayImage.src) {
-        // Asegúrate de que la imagen esté cargada antes de intentar dibujarla
         if (appOverlayImage.naturalWidth > 0 && appOverlayImage.naturalHeight > 0) {
+            // Dibuja el overlay con las mismas transformaciones que el video
+            context.save();
+            if (transform.includes('rotate(90deg)')) {
+                context.translate(canvas.width, 0);
+                context.rotate(Math.PI / 2);
+            } else if (transform.includes('rotate(-90deg)')) {
+                context.translate(0, canvas.height);
+                context.rotate(-Math.PI / 2);
+            }
+            if (transform.includes('scaleX(-1)')) {
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+            }
             context.drawImage(appOverlayImage, 0, 0, videoWidth, videoHeight);
+            context.restore();
             console.log("Overlay dibujado en el canvas.");
         } else {
             console.warn("La imagen de overlay no está completamente cargada, no se dibujó.");
-            // Podrías intentar recargar la imagen o manejar el error aquí
         }
     }
 
-    // Obtiene la URL de la imagen del canvas
     const photoURL = canvas.toDataURL('image/png');
     console.log("URL de foto capturada generada.");
     return photoURL;
@@ -154,7 +190,6 @@ function captureFrameWithOverlay() {
 
 function addPhotoToGallery(photo) {
     console.log("addPhotoToGallery() llamada con:", photo.name);
-    // Verificar si la foto ya existe para evitar duplicados si se carga desde localStorage
     if (!capturedPhotos.some(p => p.url === photo.url)) {
         capturedPhotos.push({ ...photo, isSelected: false }); // Añadir isSelected
     }
@@ -173,6 +208,8 @@ function loadPhotosFromLocalStorage() {
     const storedPhotos = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedPhotos) {
         capturedPhotos = JSON.parse(storedPhotos);
+        // Asegurarse de que 'isSelected' exista en objetos antiguos si no lo tenían
+        capturedPhotos = capturedPhotos.map(photo => ({ ...photo, isSelected: photo.isSelected || false }));
         renderThumbnails();
         updateButtonsState();
     }
@@ -189,12 +226,13 @@ function renderThumbnails() {
     capturedPhotos.forEach((photo, index) => {
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.classList.add('thumbnail');
-        thumbnailDiv.dataset.index = index; // Guardar el índice para referencia
+        // Usar data-index para referencia, no para selección visual directa
+        thumbnailDiv.dataset.index = index; 
 
         const img = document.createElement('img');
         img.src = photo.url;
         img.alt = photo.name || `Foto ${index + 1}`;
-        img.dataset.index = index; // Para el listener de clic
+        img.classList.add('thumbnail-image'); // Nueva clase para la imagen dentro del thumbnail
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -203,6 +241,8 @@ function renderThumbnails() {
         checkbox.addEventListener('change', (e) => {
             e.stopPropagation(); // Evita que el clic en el checkbox active el evento del div
             photo.isSelected = checkbox.checked;
+            // Toggle 'selected' class on the parent div
+            thumbnailDiv.classList.toggle('selected', photo.isSelected);
             updateButtonsState();
             savePhotosToLocalStorage(); // Guardar el estado de selección
         });
@@ -210,7 +250,6 @@ function renderThumbnails() {
         const viewButton = document.createElement('button');
         viewButton.textContent = 'Ver';
         viewButton.classList.add('view-button');
-        // Lo mantengo por si quieres un botón explícito para ver
         viewButton.addEventListener('click', (e) => {
             e.stopPropagation(); // Evita que el clic en el botón active el evento del div
             showFullscreenPhoto(photo.url);
@@ -221,35 +260,40 @@ function renderThumbnails() {
         thumbnailDiv.appendChild(viewButton);
         
         // <<-- CORRECCIÓN: Lógica para un clic (seleccionar) y doble clic (ver) -->>
-        let clickTimer = null;
-        thumbnailDiv.addEventListener('click', () => {
-            if (clickTimer === null) {
-                clickTimer = setTimeout(() => {
-                    // Primer clic: seleccionar/deseleccionar
+        let clickTimeout;
+        thumbnailDiv.addEventListener('click', (e) => {
+            // Si el clic viene del checkbox o del botón "Ver", no hacer nada aquí
+            if (e.target === checkbox || e.target === viewButton) {
+                return;
+            }
+
+            if (clickTimeout) {
+                clearTimeout(clickTimeout);
+                clickTimeout = null;
+                // Doble clic: Ver foto
+                showFullscreenPhoto(photo.url);
+            } else {
+                clickTimeout = setTimeout(() => {
+                    // Un solo clic: Seleccionar/deseleccionar
                     checkbox.checked = !checkbox.checked;
                     photo.isSelected = checkbox.checked;
+                    thumbnailDiv.classList.toggle('selected', photo.isSelected); // Aplicar clase CSS
                     updateButtonsState();
                     savePhotosToLocalStorage();
-                    clickTimer = null;
-                }, 200); // Espera 200ms para ver si hay un segundo clic
-            } else {
-                // Segundo clic: ver foto
-                clearTimeout(clickTimer);
-                clickTimer = null;
-                showFullscreenPhoto(photo.url);
+                    clickTimeout = null;
+                }, 300); // 300ms es un buen umbral para doble clic
             }
         });
-        // Si el usuario toca y arrastra (en móvil), no queremos que se active el clic
-        thumbnailDiv.addEventListener('touchend', (e) => {
-            // Prevenir el doble clic si el evento de touch termina y luego se activa el clic
-            // Esto es un poco más complejo en touch. La lógica de clickTimer arriba es más robusta.
-            // Asegurarse que el evento touch no active un click fantasma.
-            e.preventDefault(); 
-        });
+
+        // Asegurarse de que la clase 'selected' esté aplicada al cargar
+        if (photo.isSelected) {
+            thumbnailDiv.classList.add('selected');
+        }
 
         thumbnailsContainer.appendChild(thumbnailDiv);
     });
 }
+
 
 function showFullscreenPhoto(url) {
     fullscreenImage.src = url;
@@ -301,7 +345,7 @@ takePhotoButton.addEventListener('click', () => {
     const photoURL = captureFrameWithOverlay();
     if (photoURL) {
         console.log("Foto capturada, URL generada.");
-        addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString() + ".png" }); 
+        addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString().replace(/[:.-]/g, '') + ".png" }); 
         messageElement.textContent = '¡Foto tomada!';
     } else {
         console.log("No se pudo capturar la foto (photoURL es null).");
@@ -321,6 +365,9 @@ deleteSelectedPhotosButton.addEventListener('click', () => {
 });
 
 deleteAllPhotosButton.addEventListener('click', () => {
+    // Reemplazado confirm() por un modal personalizado en una versión anterior.
+    // Si quieres el modal de nuevo, necesitarías el HTML/CSS y JS de ese modal.
+    // Por ahora, vuelvo a confirm() para simplicidad si no tienes el modal.
     if (confirm('¿Estás seguro de que quieres borrar TODAS las fotos? Esta acción no se puede deshacer.')) {
         console.log("Eliminando todas las fotos.");
         capturedPhotos = [];
@@ -344,9 +391,7 @@ downloadZipButton.addEventListener('click', async () => {
 
     for (const photo of selectedPhotos) {
         try {
-            // Eliminar el prefijo de data URL si existe para el nombre del archivo
             const base64Data = photo.url.split(',')[1];
-            // Asegurarse de que el nombre del archivo no tenga caracteres no válidos
             const cleanName = photo.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
             zip.file(cleanName, base64Data, { base64: true });
             console.log(`Añadida ${cleanName} al ZIP.`);
