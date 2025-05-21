@@ -48,7 +48,7 @@ body {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
-/* === CORRECCIÓN: Contenedor de la cámara para evitar que se vea aplastado === */
+/* === Contenedor de la cámara === */
 .camera-overlay-container {
     position: relative;
     width: 90vw;
@@ -65,7 +65,7 @@ body {
     align-items: center;
 }
 
-/* === CORRECCIÓN: Ajuste del video y overlay para que no se vean aplastados === */
+/* === Ajuste del video y overlay === */
 video, .app-overlay-image {
     position: relative; /* Cambiado de absolute a relative para que se ajuste al contenedor */
     width: 100%;
@@ -190,18 +190,35 @@ canvas {
 
 .gallery-controls {
     display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column; /* Cambiado a columna para apilar los grupos */
+    align-items: center; /* Centrar elementos horizontalmente */
+    gap: 15px; /* Espacio entre los grupos (ZIP y borrar) */
     margin-bottom: 15px;
+    width: 100%; /* Asegura que ocupe el ancho completo para el justify-content */
 }
 
-/* Estilo para los botones de borrar (sin cambios, como solicitaste) */
+/* Estilo para los botones de borrar (sin cambios en color) */
 #deleteSelectedPhotosButton, #deleteAllPhotosButton {
     background-color: #dc3545; /* Rojo para borrar */
 }
 #deleteSelectedPhotosButton:hover, #deleteAllPhotosButton:hover {
     background-color: #c82333;
+}
+
+/* Nuevo estilo para el grupo de botones de borrar */
+.delete-buttons-group {
+    display: flex;
+    justify-content: space-between; /* Empuja los botones a los extremos */
+    width: 100%; /* Ocupa todo el ancho disponible para la separación */
+    max-width: 400px; /* Limita el ancho para que no se estiren demasiado en pantallas grandes */
+    gap: 10px; /* Espacio entre los dos botones de borrar */
+}
+
+/* Asegurarse de que los botones dentro de este grupo se ajusten */
+.delete-buttons-group button {
+    flex-grow: 1; /* Permite que los botones crezcan para llenar el espacio */
+    padding: 10px 15px; /* Ajusta el padding si es necesario para que quepan bien */
+    font-size: 0.95em; /* Un poco más pequeño para caber */
 }
 
 
@@ -275,8 +292,8 @@ canvas {
 
 /* Estilo para el input del nombre del ZIP */
 .zip-name-input-group {
-    margin-top: 10px; 
-    margin-bottom: 15px;
+    margin-top: 0; /* Ya no necesita margin-top si está dentro de gallery-controls con gap */
+    margin-bottom: 0; /* Ya no necesita margin-bottom */
     display: flex;
     flex-direction: column;
     align-items: center;
