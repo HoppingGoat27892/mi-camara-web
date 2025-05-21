@@ -138,10 +138,8 @@ function captureFrameWithOverlay() {
     const context = canvas.getContext('2d');
 
     // Dibuja el frame del video en el canvas
-    // Si el video fue rotado en CSS para visualización, aquí se dibuja en su orientación nativa
-    // Si se aplicó un transform en el video (rotate, scaleX), debemos aplicarlo al contexto del canvas
-    // para que la imagen capturada refleje lo que el usuario ve.
-    context.save(); // Guarda el estado actual del contexto
+    // Aplica las transformaciones del video (rotación/volteo) al contexto del canvas
+    context.save(); 
     const transform = video.style.transform;
     if (transform.includes('rotate(90deg)')) {
         context.translate(canvas.width, 0);
@@ -157,7 +155,11 @@ function captureFrameWithOverlay() {
     context.drawImage(video, 0, 0, videoWidth, videoHeight);
     context.restore(); // Restaura el estado del contexto
 
-    // Dibuja el overlay si está visible
+
+    // === CAMBIO CLAVE AQUÍ: Hemos comentado el código que dibuja el overlay ===
+    // Si quieres que la foto capturada NO incluya la máscara (overlay),
+    // simplemente no dibujes la imagen appOverlayImage en el canvas.
+    /*
     if (appOverlayImage.style.display !== 'none' && appOverlayImage.src) {
         if (appOverlayImage.naturalWidth > 0 && appOverlayImage.naturalHeight > 0) {
             // Dibuja el overlay con las mismas transformaciones que el video
@@ -180,6 +182,7 @@ function captureFrameWithOverlay() {
             console.warn("La imagen de overlay no está completamente cargada, no se dibujó.");
         }
     }
+    */
 
     const photoURL = canvas.toDataURL('image/png');
     console.log("URL de foto capturada generada.");
@@ -226,7 +229,6 @@ function renderThumbnails() {
     capturedPhotos.forEach((photo, index) => {
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.classList.add('thumbnail');
-        // Usar data-index para referencia, no para selección visual directa
         thumbnailDiv.dataset.index = index; 
 
         const img = document.createElement('img');
@@ -241,10 +243,9 @@ function renderThumbnails() {
         checkbox.addEventListener('change', (e) => {
             e.stopPropagation(); // Evita que el clic en el checkbox active el evento del div
             photo.isSelected = checkbox.checked;
-            // Toggle 'selected' class on the parent div
             thumbnailDiv.classList.toggle('selected', photo.isSelected);
             updateButtonsState();
-            savePhotosToLocalStorage(); // Guardar el estado de selección
+            savePhotosToLocalStorage();
         });
 
         const viewButton = document.createElement('button');
@@ -259,10 +260,8 @@ function renderThumbnails() {
         thumbnailDiv.appendChild(checkbox);
         thumbnailDiv.appendChild(viewButton);
         
-        // <<-- CORRECCIÓN: Lógica para un clic (seleccionar) y doble clic (ver) -->>
         let clickTimeout;
         thumbnailDiv.addEventListener('click', (e) => {
-            // Si el clic viene del checkbox o del botón "Ver", no hacer nada aquí
             if (e.target === checkbox || e.target === viewButton) {
                 return;
             }
@@ -270,14 +269,12 @@ function renderThumbnails() {
             if (clickTimeout) {
                 clearTimeout(clickTimeout);
                 clickTimeout = null;
-                // Doble clic: Ver foto
                 showFullscreenPhoto(photo.url);
             } else {
                 clickTimeout = setTimeout(() => {
-                    // Un solo clic: Seleccionar/deseleccionar
                     checkbox.checked = !checkbox.checked;
                     photo.isSelected = checkbox.checked;
-                    thumbnailDiv.classList.toggle('selected', photo.isSelected); // Aplicar clase CSS
+                    thumbnailDiv.classList.toggle('selected', photo.isSelected);
                     updateButtonsState();
                     savePhotosToLocalStorage();
                     clickTimeout = null;
@@ -285,7 +282,6 @@ function renderThumbnails() {
             }
         });
 
-        // Asegurarse de que la clase 'selected' esté aplicada al cargar
         if (photo.isSelected) {
             thumbnailDiv.classList.add('selected');
         }
@@ -297,7 +293,7 @@ function renderThumbnails() {
 
 function showFullscreenPhoto(url) {
     fullscreenImage.src = url;
-    fullscreenPhotoView.style.display = 'flex'; // <<-- CORRECCIÓN: Mostrar la vista
+    fullscreenPhotoView.style.display = 'flex';
     console.log("Mostrando foto en pantalla completa.");
 }
 
@@ -332,7 +328,6 @@ function loadSelectedOverlay() {
         overlaySelect.value = storedOverlay;
         applySelectedOverlay();
     } else {
-        // Si no hay selección guardada, establece el valor por defecto (Patrón Dispensador)
         overlaySelect.value = "assets/images/image_f2b0cc.png"; //
         applySelectedOverlay();
     }
@@ -365,10 +360,7 @@ deleteSelectedPhotosButton.addEventListener('click', () => {
 });
 
 deleteAllPhotosButton.addEventListener('click', () => {
-    // Reemplazado confirm() por un modal personalizado en una versión anterior.
-    // Si quieres el modal de nuevo, necesitarías el HTML/CSS y JS de ese modal.
-    // Por ahora, vuelvo a confirm() para simplicidad si no tienes el modal.
-    if (confirm('¿Estás seguro de que quieres borrar TODAS las fotos? Esta acción no se puede deshacer.')) {
+    if (confirm('¿Estás seguro de que quieres borrar TODAS las fotos? Esta acción no se puede rehacer.')) {
         console.log("Eliminando todas las fotos.");
         capturedPhotos = [];
         savePhotosToLocalStorage();
