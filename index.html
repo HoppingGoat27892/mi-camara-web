@@ -3,68 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara Web con Patrón, Galería y Descarga ZIP</title>
-    
+    <title>Dispensador Inteligente</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
     <div id="bannerContainer">
-        [Espacio para tu Banner]
+        <h1>Dispensador Inteligente</h1>
     </div>
 
     <div class="camera-overlay-container">
         <video id="videoElement" autoplay playsinline></video>
-        <img id="appOverlayImage" src="assets/images/image_f2b0cc.png" alt="Patrón de Dispensador de Papel" class="app-overlay-image">
+        <img id="appOverlayImage" class="app-overlay-image" src="" alt="Overlay" style="display: none;">
+        <canvas id="canvas" style="display: none;"></canvas>
     </div>
 
     <div class="camera-controls">
         <div class="overlay-select-group">
             <label for="overlaySelect">Seleccionar Patrón:</label>
             <select id="overlaySelect">
-                <option value="">--- Sin Patrón ---</option>
-                <option value="assets/images/image_f2b0cc.png" selected>Patrón Dispensador</option>
-                <option value="assets/images/overlay_example2.png">Patrón de Cuadros</option> 
-                <option value="assets/images/overlay_example3.png">Patrón de Círculos</option>
-            </select>
+                <option value="">Ninguno</option>
+                <option value="assets/images/image_f2b0cc.png">Patrón Dispensador</option>
+                </select>
         </div>
         <button id="takePhotoButton">Tomar Foto</button>
-        <button id="processPythonButton" style="display: none;">Procesar con IA (Python)</button> 
+        <button id="processPythonButton" style="display: none;">Procesar con IA</button> 
     </div>
-    
-    <canvas id="canvas"></canvas>
-    <div id="message" class="message"></div>
 
-    <div id="ocrResultsContainer">
-        <h3>Resultados del Procesamiento (Python)</h3>
-        <pre id="ocrExtractedData"></pre>
-        <img id="ocrQrImage" src="" alt="Código QR Generado">
-        <button id="closeOcrResults">Cerrar Resultados</button>
-    </div>
+    <p id="message" class="message"></p>
 
     <div class="gallery-section">
-        <h2>Tus Fotos</h2>
-        
+        <h2>Galería de Fotos</h2>
         <div class="gallery-controls">
-            <button id="deleteSelectedPhotosButton" disabled>Borrar Fotos Seleccionadas</button>
-            <button id="deleteAllPhotosButton" disabled>Borrar Todas las Fotos</button>
             <div class="zip-name-input-group">
                 <label for="zipFileName">Nombre del archivo ZIP:</label>
-                <input type="text" id="zipFileName" placeholder="Ej: mis_fotos_del_proyecto">
+                <input type="text" id="zipFileName" placeholder="mis_fotos">
             </div>
-            <button id="downloadZipButton" disabled>Descargar Fotos Seleccionadas (ZIP)</button>
+            <button id="downloadZipButton">Generar ZIP</button>
+
+            <div class="delete-buttons-group">
+                <button id="deleteSelectedPhotosButton">Eliminar Seleccionadas</button>
+                <button id="deleteAllPhotosButton">Eliminar Todas</button>
+            </div>
         </div>
         <div id="thumbnailsContainer" class="thumbnails-container">
+            <p>No hay fotos en la galería.</p>
         </div>
     </div>
 
     <div id="fullscreenPhotoView" class="fullscreen-photo-view">
-        <img id="fullscreenImage" src="" alt="Foto Ampliada">
+        <img id="fullscreenImage" src="" alt="Foto en pantalla completa">
         <button id="backButton">Regresar</button>
     </div>
 
-    <script src="assets/lib/jszip.min.js"></script>
-    <script src="assets/lib/FileSaver.min.js"></script>
-    
+    <div id="ocrResultsContainer">
+        <h3>Resultados del Proceso</h3>
+        <pre id="ocrExtractedData"></pre>
+        <img id="ocrQrImage" src="" alt="Código QR Extraído">
+        <button id="closeOcrResults">Cerrar</button>
+    </div>
+
     <script src="js/script.js"></script>
 </body>
 </html>
