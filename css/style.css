@@ -34,15 +34,18 @@ body {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
+/* === CORRECCIÓN: Contenedor de la cámara para evitar que se vea aplastado === */
 .camera-overlay-container {
     position: relative;
     width: 90vw;
     max-width: 600px;
-    aspect-ratio: 4/3;
+    /* Eliminamos aspect-ratio fijo aquí para que el video se ajuste mejor */
+    /* La altura se ajustará con el video y object-fit */
+    height: auto; /* Permite que la altura se ajuste al contenido o al video */
     background-color: black;
     border: 2px solid #555;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: hidden; /* Importante para que el video no se salga si se rota */
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     margin-bottom: 20px;
     display: flex;
@@ -50,22 +53,30 @@ body {
     align-items: center;
 }
 
+/* === CORRECCIÓN: Ajuste del video y overlay para que no se vean aplastados === */
 video, .app-overlay-image {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative; /* Cambiado de absolute a relative para que se ajuste al contenedor */
     width: 100%;
-    height: 100%;
-    object-fit: fill;
+    height: auto; /* Permitir que la altura se ajuste automáticamente */
+    object-fit: contain; /* Mantiene la proporción del video/imagen. Si el video es horizontal y el espacio es vertical, habrá barras negras. Si quieres que llene todo y recorte, usa 'cover'. 'contain' es más seguro para no distorsionar. */
+    display: block; /* Asegura que el video se comporte como un bloque */
 }
 
 video {
     z-index: 1;
+    /* La rotación se manejará en JavaScript para mayor flexibilidad y detección de orientación */
+    /* Asegúrate de que no haya un 'transform: scaleX(1)' o similar aquí que lo esté volteando si no quieres */
 }
 
 .app-overlay-image {
-    z-index: 2;
+    position: absolute; /* Vuelve a absolute para que se superponga al video */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* O 'cover' si quieres que llene todo el espacio del video */
     pointer-events: none; /* Permite clics a través de la imagen */
+    z-index: 2;
 }
 
 button {
@@ -196,17 +207,58 @@ canvas {
     background-color: #1a1a1a;
 }
 
-.thumbnail-item {
-    width: 80px;
-    height: 60px;
+/* Estilo para cada miniatura individual */
+.thumbnail {
+    position: relative; /* Para posicionar el checkbox y el botón Ver */
+    width: 80px; /* Ancho fijo para la miniatura */
+    height: 80px; /* Altura fija para la miniatura, ajusta según necesites */
     border: 2px solid transparent;
     cursor: pointer;
     transition: border-color 0.2s ease, transform 0.2s ease;
-    object-fit: cover;
+    border-radius: 4px;
+    overflow: hidden; /* Oculta cualquier parte de la imagen que se desborde */
+    display: flex; /* Para centrar la imagen dentro del div */
+    justify-content: center;
+    align-items: center;
+    flex-direction: column; /* Para apilar imagen, checkbox y botón */
+}
+
+.thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Asegura que la imagen llene el espacio sin distorsionarse */
     border-radius: 4px;
 }
 
-.thumbnail-item.selected {
+.thumbnail-checkbox {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 3; /* Asegura que esté por encima de la imagen */
+}
+
+.view-button {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    padding: 3px 8px;
+    font-size: 0.7em;
+    background-color: rgba(0, 123, 255, 0.8); /* Azul semi-transparente */
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    z-index: 3;
+    opacity: 0; /* Oculto por defecto */
+    transition: opacity 0.2s ease;
+}
+
+.thumbnail:hover .view-button {
+    opacity: 1; /* Mostrar al pasar el ratón */
+}
+
+
+.thumbnail.selected {
     border-color: #007bff; /* Borde azul para la foto seleccionada */
     transform: scale(1.05); /* Un ligero agrandamiento */
 }
@@ -241,9 +293,9 @@ canvas {
 }
 
 
-/* Vista de foto predeterminada (ampliada) */
+/* === CORRECCIÓN: Vista de foto predeterminada (ampliada) - Oculta por defecto === */
 .fullscreen-photo-view {
-    display: none;
+    display: none; /* ¡Esta es la línea clave que necesitamos o modificar! */
     position: fixed;
     top: 0;
     left: 0;
@@ -251,8 +303,7 @@ canvas {
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.9);
     z-index: 1000;
-    display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Asegura que la imagen y el botón estén apilados */
     justify-content: center;
     align-items: center;
     padding: 20px;
