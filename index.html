@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cámara Web con Patrón y Galería de Fotos</title>
+    <title>Cámara Web con Patrón, Galería y Descarga ZIP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -20,19 +23,18 @@
             box-sizing: border-box;
         }
 
-        /* Contenedor principal para la cámara y la imagen superpuesta */
         .camera-overlay-container {
             position: relative;
             width: 90vw;
             max-width: 600px;
-            aspect-ratio: 4/3; /* Proporción 4:3. Ajusta a 16/9 si tu cámara lo es. */
+            aspect-ratio: 4/3;
             background-color: black;
             border: 2px solid #555;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
             margin-bottom: 20px;
-            display: flex; /* Asegura que el video se cargue y se centre */
+            display: flex;
             justify-content: center;
             align-items: center;
         }
@@ -43,7 +45,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: fill; /* Fuerza al contenido a llenar el contenedor */
+            object-fit: fill;
         }
 
         video {
@@ -52,12 +54,12 @@
 
         .app-overlay-image {
             z-index: 2;
-            pointer-events: none; /* Permite clics a través de la imagen */
+            pointer-events: none;
         }
 
         button {
-            margin: 10px 5px; /* Espacio alrededor de los botones */
-            padding: 12px 25px; /* Ligeramente más pequeños para que quepan más */
+            margin: 10px 5px;
+            padding: 12px 25px;
             font-size: 1.1em;
             cursor: pointer;
             background-color: #007bff;
@@ -76,7 +78,7 @@
         }
 
         canvas {
-            display: none; /* Oculta el canvas hasta que se tome una foto temporalmente */
+            display: none;
         }
 
         .message {
@@ -103,49 +105,49 @@
         .gallery-controls {
             display: flex;
             justify-content: center;
-            flex-wrap: wrap; /* Permite que los botones se envuelvan en pantallas pequeñas */
-            gap: 10px; /* Espacio entre los botones */
+            flex-wrap: wrap;
+            gap: 10px;
             margin-bottom: 15px;
         }
 
         .thumbnails-container {
             display: flex;
-            flex-wrap: wrap; /* Permite que las miniaturas se envuelvan */
-            gap: 10px; /* Espacio entre miniaturas */
+            flex-wrap: wrap;
+            gap: 10px;
             justify-content: center;
             padding: 10px 0;
-            max-height: 250px; /* Altura máxima para el scroll de miniaturas */
-            overflow-y: auto; /* Scroll para las miniaturas si hay muchas */
+            max-height: 250px;
+            overflow-y: auto;
             border: 1px solid #444;
             border-radius: 5px;
             background-color: #1a1a1a;
         }
 
         .thumbnail-item {
-            width: 80px; /* Ancho fijo para las miniaturas */
-            height: 60px; /* Altura fija para las miniaturas (ajusta si tu ratio es diferente) */
+            width: 80px;
+            height: 60px;
             border: 2px solid transparent;
             cursor: pointer;
             transition: border-color 0.2s ease, transform 0.2s ease;
-            object-fit: cover; /* Recorta la miniatura para que llene el espacio */
+            object-fit: cover;
             border-radius: 4px;
         }
 
         .thumbnail-item.selected {
-            border-color: #007bff; /* Borde azul para la foto seleccionada */
-            transform: scale(1.05); /* Un ligero agrandamiento */
+            border-color: #007bff;
+            transform: scale(1.05);
         }
 
         /* Vista de foto predeterminada (ampliada) */
         .fullscreen-photo-view {
-            display: none; /* Oculto por defecto */
-            position: fixed; /* Fijo en la ventana */
+            display: none;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: rgba(0, 0, 0, 0.9); /* Fondo oscuro semitransparente */
-            z-index: 1000; /* Asegura que esté por encima de todo */
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -156,8 +158,8 @@
 
         .fullscreen-photo-view img {
             max-width: 90vw;
-            max-height: 80vh; /* Ajusta para dejar espacio al botón */
-            object-fit: contain; /* Contiene la imagen sin recortar */
+            max-height: 80vh;
+            object-fit: contain;
             border: 3px solid #eee;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
@@ -167,10 +169,18 @@
             margin-top: 20px;
             padding: 12px 30px;
             font-size: 1.1em;
-            background-color: #dc3545; /* Botón de regresar rojo */
+            background-color: #dc3545;
         }
         .fullscreen-photo-view button:hover {
             background-color: #c82333;
+        }
+
+        /* Estilo para el nuevo botón de descarga ZIP */
+        #downloadZipButton {
+            background-color: #28a745; /* Verde */
+        }
+        #downloadZipButton:hover {
+            background-color: #218838;
         }
     </style>
 </head>
@@ -181,15 +191,16 @@
     </div>
 
     <button id="takePhotoButton">Tomar Foto</button>
-    <canvas id="canvas"></canvas> <div id="message" class="message"></div>
+    <canvas id="canvas"></canvas>
+    <div id="message" class="message"></div>
 
     <div class="gallery-section">
         <h2>Tus Fotos</h2>
         <div class="gallery-controls">
-            <button id="selectPhotoButton" disabled>Seleccionar Foto</button>
+            <button id="selectPhotoButton" disabled>Seleccionar Foto</button> 
             <button id="deletePhotoButton" disabled>Borrar Foto</button>
             <button id="viewPhotoButton" disabled>Ver Foto Grande</button>
-        </div>
+            <button id="downloadZipButton" disabled>Descargar Fotos (ZIP)</button> </div>
         <div id="thumbnailsContainer" class="thumbnails-container">
             </div>
     </div>
@@ -208,15 +219,16 @@
         const cameraOverlayContainer = document.querySelector('.camera-overlay-container');
 
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
-        const selectPhotoButton = document.getElementById('selectPhotoButton');
+        const selectPhotoButton = document.getElementById('selectPhotoButton'); // Este botón ahora activa la selección por clic
         const deletePhotoButton = document.getElementById('deletePhotoButton');
         const viewPhotoButton = document.getElementById('viewPhotoButton');
+        const downloadZipButton = document.getElementById('downloadZipButton'); // Nuevo botón
 
         const fullscreenPhotoView = document.getElementById('fullscreenPhotoView');
         const fullscreenImage = document.getElementById('fullscreenImage');
         const backButton = document.getElementById('backButton');
 
-        let photos = []; // Array para almacenar las URLs de las fotos
+        let photos = []; // Array para almacenar las URLs de las fotos (Base64)
         let selectedPhotoIndex = -1; // Índice de la foto seleccionada
 
         // --- Funciones de la Cámara ---
@@ -270,7 +282,6 @@
                     console.warn("La imagen de superposición no está cargada o no se encontró para dibujar en el canvas.");
                 }
 
-                // Obtener la URL de la imagen del canvas y añadirla a la galería
                 const photoURL = canvas.toDataURL('image/png');
                 addPhotoToGallery(photoURL);
             } else {
@@ -282,16 +293,18 @@
         function addPhotoToGallery(photoURL) {
             photos.push(photoURL);
             renderThumbnails();
+            // Seleccionar la última foto automáticamente después de tomarla
+            selectPhoto(photos.length - 1); 
             messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
         }
 
         function renderThumbnails() {
-            thumbnailsContainer.innerHTML = ''; // Limpiar miniaturas existentes
+            thumbnailsContainer.innerHTML = '';
             photos.forEach((photoURL, index) => {
                 const img = document.createElement('img');
                 img.src = photoURL;
                 img.classList.add('thumbnail-item');
-                img.dataset.index = index; // Guardar el índice para seleccionar
+                img.dataset.index = index;
                 
                 if (index === selectedPhotoIndex) {
                     img.classList.add('selected');
@@ -302,24 +315,16 @@
                 });
                 thumbnailsContainer.appendChild(img);
             });
-            updateButtonsState(); // Actualizar el estado de los botones
+            updateButtonsState();
         }
 
         function selectPhoto(index) {
-            // Deseleccionar la foto anterior si existe
-            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
-                const prevSelected = document.querySelector(`.thumbnail-item[data-index="${selectedPhotoIndex}"]`);
-                if (prevSelected) {
-                    prevSelected.classList.remove('selected');
-                }
+            if (index === selectedPhotoIndex) { // Si ya está seleccionada, deseleccionar
+                selectedPhotoIndex = -1;
+            } else {
+                selectedPhotoIndex = index;
             }
-
-            // Seleccionar la nueva foto
-            selectedPhotoIndex = index;
-            const currentSelected = document.querySelector(`.thumbnail-item[data-index="${selectedPhotoIndex}"]`);
-            if (currentSelected) {
-                currentSelected.classList.add('selected');
-            }
+            renderThumbnails(); // Re-renderizar para actualizar clases
             updateButtonsState();
         }
 
@@ -327,9 +332,9 @@
             if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
                 const confirmDelete = confirm('¿Estás seguro de que quieres borrar la foto seleccionada?');
                 if (confirmDelete) {
-                    photos.splice(selectedPhotoIndex, 1); // Eliminar la foto del array
+                    photos.splice(selectedPhotoIndex, 1);
                     selectedPhotoIndex = -1; // Resetear la selección
-                    renderThumbnails(); // Volver a renderizar las miniaturas
+                    renderThumbnails();
                     messageDiv.textContent = 'Foto borrada.';
                 }
             }
@@ -338,8 +343,7 @@
         function viewSelectedPhoto() {
             if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
                 fullscreenImage.src = photos[selectedPhotoIndex];
-                fullscreenPhotoView.style.display = 'flex'; // Mostrar la vista ampliada
-                // Ocultar la cámara y la galería temporalmente
+                fullscreenPhotoView.style.display = 'flex';
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
                 document.querySelector('.gallery-section').style.display = 'none';
@@ -347,8 +351,7 @@
         }
 
         function hideFullscreenPhotoView() {
-            fullscreenPhotoView.style.display = 'none'; // Ocultar la vista ampliada
-            // Volver a mostrar la cámara y la galería
+            fullscreenPhotoView.style.display = 'none';
             cameraOverlayContainer.style.display = 'flex';
             takePhotoButton.style.display = 'block';
             document.querySelector('.gallery-section').style.display = 'block';
@@ -358,36 +361,86 @@
             const hasPhotos = photos.length > 0;
             const photoSelected = selectedPhotoIndex !== -1;
 
-            selectPhotoButton.disabled = !hasPhotos; // Deshabilita si no hay fotos
-            deletePhotoButton.disabled = !photoSelected; // Deshabilita si no hay foto seleccionada
-            viewPhotoButton.disabled = !photoSelected; // Deshabilita si no hay foto seleccionada
+            // El botón 'Seleccionar Foto' no hace nada si ya hay una seleccionada
+            // o si no hay fotos. La selección ahora es por clic en miniatura.
+            // Lo dejamos habilitado solo si hay fotos para dar una señal visual.
+            selectPhotoButton.disabled = !hasPhotos;
+
+            deletePhotoButton.disabled = !photoSelected;
+            viewPhotoButton.disabled = !photoSelected;
+            downloadZipButton.disabled = !hasPhotos; // Habilita si hay al menos una foto
         }
 
-        // --- Event Listeners de Botones de Galería ---
+        // --- Funciones de Descarga ZIP ---
+        async function downloadSelectedPhotosAsZip() {
+            if (photos.length === 0) {
+                messageDiv.textContent = 'No hay fotos para descargar.';
+                return;
+            }
+
+            messageDiv.textContent = 'Preparando ZIP de fotos... Esto puede tomar un momento.';
+            const zip = new JSZip();
+
+            // Filtrar solo las fotos seleccionadas (si hay una seleccionada, sino todas)
+            const photosToZip = (selectedPhotoIndex !== -1) ? [photos[selectedPhotoIndex]] : photos;
+
+            // Alternativamente, si SIEMPRE quieres todas las fotos en el ZIP, no importa la selección:
+            // const photosToZip = photos;
+
+            let photoCounter = 0;
+            for (const photoURL of photosToZip) {
+                photoCounter++;
+                // Convertir Base64 a Blob para JSZip
+                const base64Data = photoURL.split(',')[1];
+                const blob = base64ToBlob(base64Data, 'image/png');
+                zip.file(`foto_${photoCounter}.png`, blob);
+            }
+
+            try {
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                saveAs(zipBlob, "fotos_camara.zip"); // Usa FileSaver.js
+                messageDiv.textContent = `ZIP con ${photosToZip.length} fotos descargado como "fotos_camara.zip".`;
+            } catch (error) {
+                console.error("Error al generar el ZIP:", error);
+                messageDiv.textContent = 'Error al generar el archivo ZIP. Inténtalo de nuevo.';
+            }
+        }
+
+        // Función auxiliar para convertir Base64 a Blob (necesario para JSZip)
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, { type: mimeType });
+        }
+
+
+        // --- Event Listeners Globales ---
         selectPhotoButton.addEventListener('click', () => {
-            // La lógica de selección se maneja al hacer clic en la miniatura.
-            // Este botón podría usarse para deseleccionar si lo deseas, o simplemente para activar
-            // visualmente los otros botones una vez que una foto está seleccionada por clic.
-            // Dejamos la función para futuras expansiones.
-            if (selectedPhotoIndex === -1 && photos.length > 0) {
-                 // Si no hay nada seleccionado, seleccionar la primera
-                selectPhoto(0);
+            if (photos.length > 0 && selectedPhotoIndex === -1) {
+                selectPhoto(0); // Si no hay nada seleccionado y hay fotos, selecciona la primera
             } else if (selectedPhotoIndex !== -1) {
-                // Si ya hay algo seleccionado, este botón podría deseleccionar,
-                // o no hacer nada, dependiendo del UX deseado.
-                // Por ahora, solo actualiza el estado de los botones si ya está seleccionado.
-                updateButtonsState();
+                 // Si ya hay una seleccionada, al hacer clic de nuevo la deselecciona
+                selectPhoto(selectedPhotoIndex); // Llama a selectPhoto con el mismo índice para deseleccionar
             }
         });
-
         deletePhotoButton.addEventListener('click', deleteSelectedPhoto);
         viewPhotoButton.addEventListener('click', viewSelectedPhoto);
+        downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip); // Nuevo evento
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
         // Inicia la cámara cuando la página se carga
         window.addEventListener('load', () => {
             startCamera();
-            updateButtonsState(); // Actualizar estado inicial de los botones
+            updateButtonsState();
         });
     </script>
 </body>
