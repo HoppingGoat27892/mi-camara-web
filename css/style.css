@@ -190,11 +190,11 @@ canvas {
 
 .gallery-controls {
     display: flex;
-    flex-direction: column; /* Cambiado a columna para apilar los grupos */
-    align-items: center; /* Centrar elementos horizontalmente */
-    gap: 15px; /* Espacio entre los grupos (ZIP y borrar) */
+    flex-direction: column; /* Apila los grupos (ZIP y borrar) */
+    align-items: center; /* Centra los grupos horizontalmente */
+    gap: 15px; /* Espacio entre el grupo ZIP y el grupo de borrar */
     margin-bottom: 15px;
-    width: 100%; /* Asegura que ocupe el ancho completo para el justify-content */
+    width: 100%; /* Ocupa el ancho completo para que los sub-flexbox funcionen */
 }
 
 /* Estilo para los botones de borrar (sin cambios en color) */
@@ -205,9 +205,9 @@ canvas {
     background-color: #c82333;
 }
 
-/* Nuevo estilo para el grupo de botones de borrar */
+/* === CORRECCIÓN: Estilo para el grupo de botones de borrar === */
 .delete-buttons-group {
-    display: flex;
+    display: flex; /* Ahora sí, flex para que estén uno al lado del otro */
     justify-content: space-between; /* Empuja los botones a los extremos */
     width: 100%; /* Ocupa todo el ancho disponible para la separación */
     max-width: 400px; /* Limita el ancho para que no se estiren demasiado en pantallas grandes */
@@ -217,8 +217,9 @@ canvas {
 /* Asegurarse de que los botones dentro de este grupo se ajusten */
 .delete-buttons-group button {
     flex-grow: 1; /* Permite que los botones crezcan para llenar el espacio */
-    padding: 10px 15px; /* Ajusta el padding si es necesario para que quepan bien */
+    padding: 10px 15px; /* Ajusta el padding si es necesario */
     font-size: 0.95em; /* Un poco más pequeño para caber */
+    min-width: 45%; /* Asegura que tengan un ancho mínimo y se separen bien */
 }
 
 
@@ -292,8 +293,8 @@ canvas {
 
 /* Estilo para el input del nombre del ZIP */
 .zip-name-input-group {
-    margin-top: 0; /* Ya no necesita margin-top si está dentro de gallery-controls con gap */
-    margin-bottom: 0; /* Ya no necesita margin-bottom */
+    margin-top: 0;
+    margin-bottom: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
