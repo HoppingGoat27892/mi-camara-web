@@ -120,7 +120,7 @@ takePhotoButton.addEventListener('click', () => {
         // Formato final del nombre de la foto. Puedes cambiar "foto_" o "_png"
         const photoName = `foto_${cleanedFilterName}_${timestamp}.png`;
 
-        addPhotoToGallery({ url: photoURL, name: photoName }); 
+        addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString() + ".png" });
     }
 });
 
@@ -223,6 +223,10 @@ function addPhotoToGallery(photoData) {
     savePhotosToLocalStorage(); 
     renderThumbnails();
     messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
+    const newThumbnail = document.createElement('div');
+    newThumbnail.classList.add('thumbnail');
+    newThumbnail.dataset.originalName = photo.name; // <--- Importante que uses photo.name aquí
+
 }
 
 function renderThumbnails() {
