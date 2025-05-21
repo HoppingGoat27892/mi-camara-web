@@ -51,7 +51,8 @@ async function startCamera() {
     try {
         const constraints = {
             video: {
-                facingMode: "environment" 
+                video: true 
+                //facingMode: "environment" 
                 //facingMode: { exact: "environment" } 
             }
         };
