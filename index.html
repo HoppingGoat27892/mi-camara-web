@@ -183,11 +183,11 @@
             margin-bottom: 15px;
         }
 
-        /* Estilo para el nuevo botón de borrar todo */
-        #deleteAllPhotosButton {
+        /* Estilo para los botones de borrar */
+        #deleteSelectedPhotosButton, #deleteAllPhotosButton {
             background-color: #dc3545; /* Rojo para borrar */
         }
-        #deleteAllPhotosButton:hover {
+        #deleteSelectedPhotosButton:hover, #deleteAllPhotosButton:hover {
             background-color: #c82333;
         }
 
@@ -375,6 +375,7 @@
         <h2>Tus Fotos</h2>
         
         <div class="gallery-controls">
+            <button id="deleteSelectedPhotosButton" disabled>Borrar Fotos Seleccionadas</button>
             <button id="deleteAllPhotosButton" disabled>Borrar Todas las Fotos</button>
             <div class="zip-name-input-group">
                 <label for="zipFileName">Nombre del archivo ZIP:</label>
@@ -405,9 +406,9 @@
         const overlaySelect = document.getElementById('overlaySelect'); 
 
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
-        // CAMBIADO: Nuevo ID para el botón de borrar todas
+        // REINTRODUCIDO: Botón para borrar seleccionadas
+        const deleteSelectedPhotosButton = document.getElementById('deleteSelectedPhotosButton'); 
         const deleteAllPhotosButton = document.getElementById('deleteAllPhotosButton'); 
-        // ELIMINADO: const viewPhotoButton = document.getElementById('viewPhotoButton');
         const downloadZipButton = document.getElementById('downloadZipButton');
         const zipFileNameInput = document.getElementById('zipFileName');
 
@@ -422,7 +423,7 @@
         const closeOcrResults = document.getElementById('closeOcrResults');
 
         let photos = []; // Array para almacenar {url: string, name: string} de las fotos
-        let selectedPhotoIndexes = []; // Este array seguirá siendo útil para la descarga ZIP
+        let selectedPhotoIndexes = []; // Array para índices de fotos seleccionadas (para borrar o ZIP)
         let clickTimer = null; 
         const DBLCLICK_THRESHOLD = 300; 
 
@@ -619,9 +620,8 @@
 
         function renderThumbnails() {
             thumbnailsContainer.innerHTML = ''; 
-            // Siempre limpiar las selecciones al re-renderizar
-            selectedPhotoIndexes = []; 
             photos.forEach((photoData, index) => { 
+                // Asegurarse de que photoData no sea null (por si se eliminó una foto)
                 if (!photoData || !photoData.url) return; 
 
                 const img = document.createElement('img');
@@ -629,12 +629,11 @@
                 img.classList.add('thumbnail-item');
                 img.dataset.index = index; 
                 
-                // Ya no hay selección individual para el botón de borrar, pero se mantiene para ZIP
+                // Aplicar clase 'selected' si está en el array de seleccionadas
                 if (selectedPhotoIndexes.includes(index)) {
                     img.classList.add('selected');
                 }
 
-                // La lógica de click y doble click se mantiene para ver la foto y seleccionar para ZIP
                 img.addEventListener('click', (event) => {
                     if (clickTimer) {
                         clearTimeout(clickTimer);
@@ -642,7 +641,7 @@
                         return; 
                     }
                     clickTimer = setTimeout(() => {
-                        togglePhotoSelection(index); // Mantiene selección para ZIP
+                        togglePhotoSelection(index);
                         updateButtonsState();
                         clickTimer = null;
                     }, DBLCLICK_THRESHOLD);
@@ -668,10 +667,42 @@
             } else {
                 selectedPhotoIndexes.push(index);
             }
-            renderThumbnails(); // Para actualizar el borde de selección
+            renderThumbnails(); // Para actualizar los bordes de selección
         }
 
-        // NUEVA FUNCIÓN: Borrar todas las fotos
+        // FUNCIÓN RESTAURADA: Borrar Fotos Seleccionadas
+        async function deleteSelectedPhotos() {
+            if (selectedPhotoIndexes.length === 0) {
+                messageDiv.textContent = 'No hay fotos seleccionadas para borrar.';
+                return;
+            }
+
+            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`);
+            if (confirmDelete) {
+                // Ordenar los índices de mayor a menor para evitar problemas al eliminar elementos del array
+                selectedPhotoIndexes.sort((a, b) => b - a); 
+                
+                selectedPhotoIndexes.forEach(index => {
+                    if (index < photos.length) {
+                        // Marcar como null en lugar de eliminar directamente para no cambiar los índices de los elementos restantes en esta iteración
+                        photos[index] = null; 
+                    }
+                });
+
+                // Filtrar los elementos null para reconstruir el array
+                photos = photos.filter(photo => photo !== null);
+
+                selectedPhotoIndexes = []; // Limpiar las selecciones después de borrar
+                savePhotosToLocalStorage(); 
+                
+                // Reiniciar la cámara y re-renderizar para reflejar los cambios
+                await startCamera(); 
+                renderThumbnails(); 
+                messageDiv.textContent = `Foto(s) borrada(s) y cámara reiniciada.`;
+            }
+        }
+
+        // FUNCIÓN: Borrar todas las fotos
         async function deleteAllPhotos() {
             if (photos.length === 0) {
                 messageDiv.textContent = 'No hay fotos para borrar.';
@@ -690,13 +721,6 @@
             }
         }
         
-        // La función de borrar seleccionadas ya no se usa, la elimino para claridad.
-        /*
-        async function deleteSelectedPhotos() {
-            // ... (código anterior de borrar seleccionadas) ...
-        }
-        */
-
         function viewPhotoAtIndex(index) {
             if (index !== -1 && index < photos.length && photos[index] !== null) { 
                 fullscreenImage.src = photos[index].url; 
@@ -712,25 +736,6 @@
             }
         }
         
-        // Esta función ya no tiene un botón directo, solo existe si quieres llamarla desde otra parte
-        /*
-        function viewLastSelectedPhoto() {
-            if (selectedPhotoIndexes.length > 0) {
-                const lastExistingSelectedPhotoIndex = selectedPhotoIndexes
-                    .reverse() 
-                    .find(idx => idx < photos.length && photos[idx] !== null); 
-                
-                if (lastExistingSelectedPhotoIndex !== undefined) {
-                     viewPhotoAtIndex(lastExistingSelectedPhotoIndex);
-                } else {
-                    messageDiv.textContent = 'Ninguna de las fotos seleccionadas existe ya.';
-                }
-            } else {
-                messageDiv.textContent = 'Por favor, selecciona una foto para ver.';
-            }
-        }
-        */
-
         function hideFullscreenPhotoView() {
             fullscreenPhotoView.style.display = 'none';
             cameraOverlayContainer.style.display = 'flex';
@@ -743,11 +748,12 @@
 
         function updateButtonsState() {
             const hasPhotos = photos.length > 0;
-            // El botón de borrar todas se habilita si hay al menos una foto
-            deleteAllPhotosButton.disabled = !hasPhotos; 
-            // El botón de descargar ZIP se habilita si hay al menos una foto seleccionada
-            downloadZipButton.disabled = selectedPhotoIndexes.length === 0;
-            // viewPhotoButton.disabled ya no existe
+            const hasSelectedPhotos = selectedPhotoIndexes.length > 0;
+
+            // Habilitar/deshabilitar los botones de la galería
+            deleteSelectedPhotosButton.disabled = !hasSelectedPhotos;
+            deleteAllPhotosButton.disabled = !hasPhotos;
+            downloadZipButton.disabled = !hasSelectedPhotos; 
         }
 
         // --- Funciones de Descarga ZIP ---
@@ -768,6 +774,7 @@
             const zip = new JSZip();
             
             let photoCounter = 0;
+            // Iterar sobre los índices seleccionados, no sobre el array `photos` directamente
             for (const index of selectedPhotoIndexes) {
                 // Asegurarse de que la foto exista y no sea null (por si se borró de otra forma)
                 if (index < photos.length && photos[index] !== null) { 
@@ -823,9 +830,9 @@
 
 
         // --- Event Listeners Globales ---
-        // CAMBIADO: Event listener para el nuevo botón de borrar todas
+        // RESTAURADO: Event listener para borrar fotos seleccionadas
+        deleteSelectedPhotosButton.addEventListener('click', deleteSelectedPhotos); 
         deleteAllPhotosButton.addEventListener('click', deleteAllPhotos); 
-        // ELIMINADO: viewPhotoButton.addEventListener('click', viewLastSelectedPhoto);
         downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
