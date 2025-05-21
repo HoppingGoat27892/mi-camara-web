@@ -1,4 +1,18 @@
 /* style.css */
+
+/* === Definición de variables CSS para los colores === */
+:root {
+    --old-gold: #C3BE44;
+    --field-drab: #676029;
+    --brunswick-green: #305342;
+    --pakistan-green: #1E3A0C;
+    --old-gold-2: #A6A03E;
+    /* Colores para el texto o detalles claros, si los necesitas */
+    --light-text: #F0F2E8; /* Un color claro para el texto que contraste con los oscuros */
+    --dark-text: #1A1A1A; /* Un color oscuro para el texto si el fondo es claro */
+}
+
+
 body {
     margin: 0;
     overflow-y: auto; /* Permite scroll vertical */
@@ -7,8 +21,8 @@ body {
     justify-content: flex-start;
     align-items: center;
     min-height: 100vh;
-    background-color: #333;
-    color: white;
+    background-color: var(--pakistan-green); /* Fondo principal oscuro */
+    color: var(--light-text); /* Color de texto claro */
     font-family: Arial, sans-serif;
     padding: 20px;
     box-sizing: border-box;
@@ -20,8 +34,8 @@ body {
     max-width: 600px;
     height: 25vh; /* Aproximadamente 1/4 de la altura del viewport */
     max-height: 150px; /* Un máximo absoluto si 25vh es demasiado grande en pantallas muy altas */
-    background-color: #5a5a5a; /* Color de fondo para que sea visible */
-    border: 2px solid #777;
+    background-color: var(--brunswick-green); /* Un verde más suave para el banner */
+    border: 2px solid var(--field-drab); /* Borde con un color tierra */
     border-radius: 8px;
     margin-bottom: 20px;
     display: flex;
@@ -29,7 +43,7 @@ body {
     align-items: center;
     font-size: 1.5em;
     font-weight: bold;
-    color: #ddd;
+    color: var(--old-gold); /* Texto del banner en dorado */
     text-align: center;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
@@ -39,11 +53,9 @@ body {
     position: relative;
     width: 90vw;
     max-width: 600px;
-    /* Eliminamos aspect-ratio fijo aquí para que el video se ajuste mejor */
-    /* La altura se ajustará con el video y object-fit */
     height: auto; /* Permite que la altura se ajuste al contenido o al video */
-    background-color: black;
-    border: 2px solid #555;
+    background-color: var(--pakistan-green); /* Fondo oscuro para el contenedor de la cámara */
+    border: 2px solid var(--brunswick-green); /* Borde verde para la cámara */
     border-radius: 8px;
     overflow: hidden; /* Importante para que el video no se salga si se rota */
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
@@ -64,8 +76,6 @@ video, .app-overlay-image {
 
 video {
     z-index: 1;
-    /* La rotación se manejará en JavaScript para mayor flexibilidad y detección de orientación */
-    /* Asegúrate de que no haya un 'transform: scaleX(1)' o similar aquí que lo esté volteando si no quieres */
 }
 
 .app-overlay-image {
@@ -79,6 +89,7 @@ video {
     z-index: 2;
 }
 
+/* Botones (sin cambios, como solicitaste) */
 button {
     margin: 10px 5px;
     padding: 12px 25px;
@@ -113,7 +124,7 @@ canvas {
 .message {
     margin-top: 20px;
     font-size: 1.1em;
-    color: #ffc107;
+    color: var(--old-gold); /* Mensajes en dorado */
     text-align: center;
     max-width: 90vw;
     margin-bottom: 20px;
@@ -140,28 +151,28 @@ canvas {
 .overlay-select-group label {
     margin-bottom: 5px;
     font-size: 0.9em;
-    color: #bbb;
+    color: var(--light-text); /* Texto de label claro */
 }
 
 .overlay-select-group select {
     padding: 8px 12px;
-    border: 1px solid #555;
+    border: 1px solid var(--field-drab); /* Borde con un color tierra */
     border-radius: 4px;
-    background-color: #444;
-    color: white;
+    background-color: var(--brunswick-green); /* Fondo del select en verde */
+    color: var(--light-text);
     font-size: 1em;
     width: 80%;
     max-width: 250px;
     box-sizing: border-box;
-    appearance: none; /* Quitar estilo nativo en algunos navegadores */
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); /* Flecha personalizada */
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); /* Flecha personalizada blanca */
     background-repeat: no-repeat;
     background-position: right 10px center;
     cursor: pointer;
 }
 .overlay-select-group select option {
-    background-color: #444; /* Fondo para las opciones */
-    color: white;
+    background-color: var(--brunswick-green); /* Fondo para las opciones */
+    color: var(--light-text);
 }
 
 
@@ -170,7 +181,7 @@ canvas {
     width: 90vw;
     max-width: 600px;
     margin-top: 30px;
-    background-color: #222;
+    background-color: var(--field-drab); /* Fondo de la galería en color tierra */
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
@@ -185,7 +196,7 @@ canvas {
     margin-bottom: 15px;
 }
 
-/* Estilo para los botones de borrar */
+/* Estilo para los botones de borrar (sin cambios, como solicitaste) */
 #deleteSelectedPhotosButton, #deleteAllPhotosButton {
     background-color: #dc3545; /* Rojo para borrar */
 }
@@ -202,31 +213,31 @@ canvas {
     padding: 10px 0;
     max-height: 250px;
     overflow-y: auto;
-    border: 1px solid #444;
+    border: 1px solid var(--brunswick-green); /* Borde del contenedor de miniaturas */
     border-radius: 5px;
-    background-color: #1a1a1a;
+    background-color: var(--pakistan-green); /* Fondo más oscuro para el contenedor de miniaturas */
 }
 
 /* Estilo para cada miniatura individual */
 .thumbnail {
-    position: relative; /* Para posicionar el checkbox y el botón Ver */
-    width: 80px; /* Ancho fijo para la miniatura */
-    height: 80px; /* Altura fija para la miniatura, ajusta según necesites */
+    position: relative;
+    width: 80px;
+    height: 80px;
     border: 2px solid transparent;
     cursor: pointer;
     transition: border-color 0.2s ease, transform 0.2s ease;
     border-radius: 4px;
-    overflow: hidden; /* Oculta cualquier parte de la imagen que se desborde */
-    display: flex; /* Para centrar la imagen dentro del div */
+    overflow: hidden;
+    display: flex;
     justify-content: center;
     align-items: center;
-    flex-direction: column; /* Para apilar imagen, checkbox y botón */
+    flex-direction: column;
 }
 
 .thumbnail img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Asegura que la imagen llene el espacio sin distorsionarse */
+    object-fit: cover;
     border-radius: 4px;
 }
 
@@ -234,7 +245,7 @@ canvas {
     position: absolute;
     top: 5px;
     left: 5px;
-    z-index: 3; /* Asegura que esté por encima de la imagen */
+    z-index: 3;
 }
 
 .view-button {
@@ -243,30 +254,29 @@ canvas {
     right: 5px;
     padding: 3px 8px;
     font-size: 0.7em;
-    background-color: rgba(0, 123, 255, 0.8); /* Azul semi-transparente */
+    background-color: rgba(0, 123, 255, 0.8); /* Azul semi-transparente (botón sin cambio) */
     color: white;
     border: none;
     border-radius: 3px;
     cursor: pointer;
     z-index: 3;
-    opacity: 0; /* Oculto por defecto */
+    opacity: 0;
     transition: opacity 0.2s ease;
 }
 
 .thumbnail:hover .view-button {
-    opacity: 1; /* Mostrar al pasar el ratón */
+    opacity: 1;
 }
 
-
 .thumbnail.selected {
-    border-color: #007bff; /* Borde azul para la foto seleccionada */
-    transform: scale(1.05); /* Un ligero agrandamiento */
+    border-color: var(--old-gold); /* Borde dorado para la foto seleccionada */
+    transform: scale(1.05);
 }
 
 /* Estilo para el input del nombre del ZIP */
 .zip-name-input-group {
     margin-top: 10px; 
-    margin-bottom: 15px; /* Espacio antes del botón de descarga */
+    margin-bottom: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -275,35 +285,35 @@ canvas {
 .zip-name-input-group label {
     margin-bottom: 5px;
     font-size: 0.9em;
-    color: #bbb;
+    color: var(--light-text);
 }
 .zip-name-input-group input[type="text"] {
     padding: 8px 12px;
-    border: 1px solid #555;
+    border: 1px solid var(--brunswick-green);
     border-radius: 4px;
-    background-color: #444;
-    color: white;
+    background-color: var(--field-drab); /* Fondo del input en color tierra */
+    color: var(--light-text);
     font-size: 1em;
     width: 80%;
     max-width: 250px;
     box-sizing: border-box;
 }
 .zip-name-input-group input[type="text"]::placeholder {
-    color: #888;
+    color: rgba(255, 255, 255, 0.5); /* Placeholder más claro */
 }
 
 
-/* === CORRECCIÓN: Vista de foto predeterminada (ampliada) - Oculta por defecto === */
+/* Vista de foto predeterminada (ampliada) */
 .fullscreen-photo-view {
-    display: none; /* ¡Esta es la línea clave que necesitamos o modificar! */
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 0.9); /* Fondo oscuro semitransparente */
     z-index: 1000;
-    flex-direction: column; /* Asegura que la imagen y el botón estén apilados */
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     padding: 20px;
@@ -314,11 +324,12 @@ canvas {
     max-width: 90vw;
     max-height: 80vh;
     object-fit: contain;
-    border: 3px solid #eee;
+    border: 3px solid var(--old-gold); /* Borde dorado para la imagen ampliada */
     border-radius: 8px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
 }
 
+/* Botón de regreso en fullscreen (sin cambios) */
 .fullscreen-photo-view button {
     margin-top: 20px;
     padding: 12px 30px;
@@ -329,7 +340,7 @@ canvas {
     background-color: #c82333;
 }
 
-/* Estilo para los nuevos botones */
+/* Estilo para los nuevos botones (sin cambios) */
 #downloadZipButton {
     background-color: #28a745;
 }
@@ -337,27 +348,27 @@ canvas {
     background-color: #218838;
 }
 
-/* Estilos para los resultados del OCR/QR (mantenidos por si los necesitas en el futuro, pero ocultos por defecto) */
+/* Estilos para los resultados del OCR/QR */
 #ocrResultsContainer {
     margin-top: 20px;
     width: 90vw;
     max-width: 600px;
-    background-color: #222;
+    background-color: var(--field-drab); /* Fondo del contenedor de OCR */
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     text-align: left;
-    display: none; /* Oculto por defecto */
+    display: none;
     flex-direction: column;
     align-items: center;
 }
 #ocrResultsContainer h3 {
-    color: #007bff;
+    color: var(--old-gold); /* Título en dorado */
     margin-bottom: 10px;
 }
 #ocrResultsContainer pre {
-    background-color: #1a1a1a;
-    color: #eee;
+    background-color: var(--pakistan-green); /* Fondo del código OCR */
+    color: var(--light-text);
     padding: 10px;
     border-radius: 4px;
     white-space: pre-wrap;
@@ -369,10 +380,10 @@ canvas {
 #ocrQrImage {
     max-width: 100%;
     height: auto;
-    border: 2px solid #555;
+    border: 2px solid var(--brunswick-green);
     border-radius: 4px;
     margin-bottom: 10px;
 }
-#closeOcrResults {
+#closeOcrResults { /* Botón de cerrar OCR (sin cambios) */
     background-color: #dc3545;
 }
