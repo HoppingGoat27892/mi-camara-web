@@ -97,6 +97,13 @@
             cursor: not-allowed;
         }
 
+        #processPythonButton {
+            background-color: #ff9800; /* Color naranja para el nuevo botón */
+        }
+        #processPythonButton:hover {
+            background-color: #fb8c00;
+        }
+
         canvas {
             display: none;
         }
@@ -175,6 +182,15 @@
             gap: 10px;
             margin-bottom: 15px;
         }
+
+        /* Estilo para el nuevo botón de borrar todo */
+        #deleteAllPhotosButton {
+            background-color: #dc3545; /* Rojo para borrar */
+        }
+        #deleteAllPhotosButton:hover {
+            background-color: #c82333;
+        }
+
 
         .thumbnails-container {
             display: flex;
@@ -278,6 +294,47 @@
         #downloadZipButton:hover {
             background-color: #218838;
         }
+
+        /* Estilos para los resultados del OCR/QR (mantenidos por si los necesitas en el futuro, pero ocultos por defecto) */
+        #ocrResultsContainer {
+            margin-top: 20px;
+            width: 90vw;
+            max-width: 600px;
+            background-color: #222;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: left;
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            align-items: center;
+        }
+        #ocrResultsContainer h3 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        #ocrResultsContainer pre {
+            background-color: #1a1a1a;
+            color: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-width: 100%;
+            overflow-x: auto;
+            margin-bottom: 15px;
+        }
+        #ocrQrImage {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #555;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        #closeOcrResults {
+            background-color: #dc3545;
+        }
+
     </style>
 </head>
 <body>
@@ -301,17 +358,24 @@
                 </select>
         </div>
         <button id="takePhotoButton">Tomar Foto</button>
+        <button id="processPythonButton" style="display: none;">Procesar con IA (Python)</button> 
     </div>
     
     <canvas id="canvas"></canvas>
     <div id="message" class="message"></div>
 
+    <div id="ocrResultsContainer">
+        <h3>Resultados del Procesamiento (Python)</h3>
+        <pre id="ocrExtractedData"></pre>
+        <img id="ocrQrImage" src="" alt="Código QR Generado">
+        <button id="closeOcrResults">Cerrar Resultados</button>
+    </div>
+
     <div class="gallery-section">
         <h2>Tus Fotos</h2>
         
         <div class="gallery-controls">
-            <button id="deletePhotoButton" disabled>Borrar Fotos Seleccionadas</button>
-            <button id="viewPhotoButton" disabled>Ver Última Seleccionada</button>
+            <button id="deleteAllPhotosButton" disabled>Borrar Todas las Fotos</button>
             <div class="zip-name-input-group">
                 <label for="zipFileName">Nombre del archivo ZIP:</label>
                 <input type="text" id="zipFileName" placeholder="Ej: mis_fotos_del_proyecto">
@@ -330,6 +394,7 @@
     <script>
         const video = document.getElementById('videoElement');
         const takePhotoButton = document.getElementById('takePhotoButton');
+        const processPythonButton = document.getElementById('processPythonButton'); 
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
         const messageDiv = document.getElementById('message');
@@ -340,8 +405,9 @@
         const overlaySelect = document.getElementById('overlaySelect'); 
 
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
-        const deletePhotoButton = document.getElementById('deletePhotoButton');
-        const viewPhotoButton = document.getElementById('viewPhotoButton');
+        // CAMBIADO: Nuevo ID para el botón de borrar todas
+        const deleteAllPhotosButton = document.getElementById('deleteAllPhotosButton'); 
+        // ELIMINADO: const viewPhotoButton = document.getElementById('viewPhotoButton');
         const downloadZipButton = document.getElementById('downloadZipButton');
         const zipFileNameInput = document.getElementById('zipFileName');
 
@@ -349,13 +415,22 @@
         const fullscreenImage = document.getElementById('fullscreenImage');
         const backButton = document.getElementById('backButton');
 
+        // Estos elementos no se usarán por ahora, pero se mantienen por si se retoma Python
+        const ocrResultsContainer = document.getElementById('ocrResultsContainer');
+        const ocrExtractedData = document.getElementById('ocrExtractedData');
+        const ocrQrImage = document.getElementById('ocrQrImage');
+        const closeOcrResults = document.getElementById('closeOcrResults');
+
         let photos = []; // Array para almacenar {url: string, name: string} de las fotos
-        let selectedPhotoIndexes = []; 
+        let selectedPhotoIndexes = []; // Este array seguirá siendo útil para la descarga ZIP
         let clickTimer = null; 
         const DBLCLICK_THRESHOLD = 300; 
 
         const LOCAL_STORAGE_KEY = 'camera_app_photos'; 
         const LOCAL_STORAGE_OVERLAY_KEY = 'camera_app_selected_overlay'; 
+
+        // URL de tu servidor Flask (comentado ya que no se usa ahora mismo)
+        // const PYTHON_BACKEND_URL = 'http://127.0.0.1:5000/process_image'; 
 
         // --- Funciones de la Cámara ---
         let currentStream; 
@@ -378,6 +453,7 @@
                 messageDiv.textContent = 'Cámara activada.';
                 cameraOverlayContainer.style.display = 'flex';
                 takePhotoButton.style.display = 'block';
+                // processPythonButton.style.display = 'block'; // Quitar esto para ocultarlo por ahora
 
                 video.addEventListener('loadedmetadata', () => {
                     if (video.videoWidth && video.videoHeight) {
@@ -398,31 +474,31 @@
                 }
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
+                // processPythonButton.style.display = 'none'; // Ocultar si no hay cámara
             }
         }
 
+        // Función para capturar la imagen del video con el overlay
+        function captureFrameWithOverlay() {
+            if (!video.srcObject) {
+                messageDiv.textContent = 'La cámara no está activa.';
+                return null;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            if (appOverlayImage.style.display !== 'none' && appOverlayImage.complete) {
+                context.drawImage(appOverlayImage, 0, 0, canvas.width, canvas.height);
+            }
+            return canvas.toDataURL('image/png');
+        }
+
         takePhotoButton.addEventListener('click', () => {
-            if (video.srcObject) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                if (appOverlayImage.style.display !== 'none' && appOverlayImage.complete) {
-                    context.drawImage(appOverlayImage, 0, 0, canvas.width, canvas.height);
-                } else {
-                    console.warn("La imagen de superposición no está visible o no se encontró para dibujar en el canvas.");
-                }
-
-                const photoURL = canvas.toDataURL('image/png');
-                
-                // EDITAR AQUÍ: Lógica para generar el nombre de la foto individual
-                // El texto que se usa para el nombre se toma directamente de la opción seleccionada.
+            const photoURL = captureFrameWithOverlay();
+            if (photoURL) {
                 const selectedOptionText = overlaySelect.options[overlaySelect.selectedIndex].text;
-                // Esto limpia el texto del filtro para que sea seguro como parte de un nombre de archivo.
-                // Si cambias los nombres de tus filtros en el HTML, esta lógica automáticamente se adaptará.
-                // Ejemplo: "--- Sin Patrón ---" -> "sin_patron"
-                // Ejemplo: "Patrón de Cuadros" -> "patron_de_cuadros"
                 const cleanedFilterName = selectedOptionText
                                             .replace(/--- /g, '') // Eliminar "--- " inicial
                                             .replace(/ ---/g, '') // Eliminar " ---" final
@@ -437,10 +513,71 @@
                 const photoName = `foto_${cleanedFilterName}_${timestamp}.png`;
 
                 addPhotoToGallery({ url: photoURL, name: photoName }); 
-            } else {
-                messageDiv.textContent = 'La cámara no está activa para tomar una foto.';
             }
         });
+
+        // Este botón se mantiene oculto por ahora
+        /*
+        processPythonButton.addEventListener('click', async () => {
+            const photoURL = captureFrameWithOverlay();
+            if (!photoURL) return;
+
+            messageDiv.textContent = 'Enviando imagen a Python para procesamiento...';
+            processPythonButton.disabled = true; // Deshabilitar el botón mientras procesa
+
+            try {
+                const response = await fetch(PYTHON_BACKEND_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image_b64: photoURL }), // Enviar la imagen Base64
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = 'Procesamiento exitoso.';
+                    console.log('Datos extraídos:', result.extracted_data);
+                    console.log('QR Base64:', result.qr_image_b64);
+
+                    // Mostrar los resultados en el contenedor dedicado
+                    ocrExtractedData.textContent = JSON.stringify(result.extracted_data, null, 2);
+                    ocrQrImage.src = `data:image/png;base64,${result.qr_image_b64}`;
+                    
+                    // Ocultar la cámara y galería, mostrar resultados
+                    cameraOverlayContainer.style.display = 'none';
+                    takePhotoButton.style.display = 'none';
+                    processPythonButton.style.display = 'none';
+                    document.querySelector('.gallery-section').style.display = 'none';
+                    document.querySelector('.camera-controls').style.display = 'none';
+                    bannerContainer.style.display = 'none';
+                    ocrResultsContainer.style.display = 'flex'; // Mostrar contenedor de resultados
+
+                } else {
+                    messageDiv.textContent = `Error en el procesamiento: ${result.error || 'Desconocido'}`;
+                    console.error('Error del backend:', result.error);
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Error al conectar con el servidor Python. Asegúrate de que esté ejecutándose.';
+                console.error('Error de red o del servidor:', error);
+            } finally {
+                processPythonButton.disabled = false; // Re-habilitar el botón
+            }
+        });
+
+        closeOcrResults.addEventListener('click', () => {
+            ocrResultsContainer.style.display = 'none';
+            cameraOverlayContainer.style.display = 'flex';
+            takePhotoButton.style.display = 'block';
+            processPythonButton.style.display = 'block';
+            document.querySelector('.gallery-section').style.display = 'block';
+            document.querySelector('.camera-controls').style.display = 'flex';
+            bannerContainer.style.display = 'flex';
+            messageDiv.textContent = 'Cámara activada.'; // Restaurar mensaje
+        });
+        */
+
 
         // --- Funciones de Galería y persistencia ---
         function savePhotosToLocalStorage() {
@@ -467,8 +604,7 @@
                 overlaySelect.value = storedOverlay;
                 applySelectedOverlay(); 
             } else {
-                // EDITAR AQUÍ: Si no hay selección guardada, esta es la opción por defecto.
-                // Asegúrate de que este valor coincida con el 'value' de una de tus opciones en el HTML.
+                // Si no hay selección guardada, esta es la opción por defecto.
                 overlaySelect.value = "image_f2b0cc.png"; 
                 applySelectedOverlay(); 
             }
@@ -483,6 +619,8 @@
 
         function renderThumbnails() {
             thumbnailsContainer.innerHTML = ''; 
+            // Siempre limpiar las selecciones al re-renderizar
+            selectedPhotoIndexes = []; 
             photos.forEach((photoData, index) => { 
                 if (!photoData || !photoData.url) return; 
 
@@ -491,10 +629,12 @@
                 img.classList.add('thumbnail-item');
                 img.dataset.index = index; 
                 
+                // Ya no hay selección individual para el botón de borrar, pero se mantiene para ZIP
                 if (selectedPhotoIndexes.includes(index)) {
                     img.classList.add('selected');
                 }
 
+                // La lógica de click y doble click se mantiene para ver la foto y seleccionar para ZIP
                 img.addEventListener('click', (event) => {
                     if (clickTimer) {
                         clearTimeout(clickTimer);
@@ -502,7 +642,7 @@
                         return; 
                     }
                     clickTimer = setTimeout(() => {
-                        togglePhotoSelection(index);
+                        togglePhotoSelection(index); // Mantiene selección para ZIP
                         updateButtonsState();
                         clickTimer = null;
                     }, DBLCLICK_THRESHOLD);
@@ -528,35 +668,34 @@
             } else {
                 selectedPhotoIndexes.push(index);
             }
-            renderThumbnails(); 
+            renderThumbnails(); // Para actualizar el borde de selección
         }
 
-        async function deleteSelectedPhotos() {
-            if (selectedPhotoIndexes.length === 0) {
-                messageDiv.textContent = 'No hay fotos seleccionadas para borrar.';
+        // NUEVA FUNCIÓN: Borrar todas las fotos
+        async function deleteAllPhotos() {
+            if (photos.length === 0) {
+                messageDiv.textContent = 'No hay fotos para borrar.';
                 return;
             }
 
-            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`);
+            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar TODAS las ${photos.length} fotos? Esta acción no se puede deshacer.`);
             if (confirmDelete) {
-                selectedPhotoIndexes.sort((a, b) => b - a);
+                photos = []; // Vacía el array de fotos
+                selectedPhotoIndexes = []; // Vacía las selecciones
+                savePhotosToLocalStorage(); // Guarda el estado vacío en Local Storage
                 
-                selectedPhotoIndexes.forEach(index => {
-                    if (index < photos.length) {
-                        photos[index] = null;
-                    }
-                });
-
-                photos = photos.filter(photo => photo !== null);
-
-                selectedPhotoIndexes = []; 
-                savePhotosToLocalStorage(); 
-                
-                await startCamera(); 
-                renderThumbnails(); 
-                messageDiv.textContent = `Foto(s) borrada(s) y cámara reiniciada.`;
+                await startCamera(); // Opcional: reiniciar la cámara
+                renderThumbnails(); // Re-renderiza la galería (ahora vacía)
+                messageDiv.textContent = `Todas las fotos han sido borradas y la cámara reiniciada.`;
             }
         }
+        
+        // La función de borrar seleccionadas ya no se usa, la elimino para claridad.
+        /*
+        async function deleteSelectedPhotos() {
+            // ... (código anterior de borrar seleccionadas) ...
+        }
+        */
 
         function viewPhotoAtIndex(index) {
             if (index !== -1 && index < photos.length && photos[index] !== null) { 
@@ -564,6 +703,7 @@
                 fullscreenPhotoView.style.display = 'flex';
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
+                processPythonButton.style.display = 'none'; // Ocultar el botón de Python
                 document.querySelector('.gallery-section').style.display = 'none';
                 document.querySelector('.camera-controls').style.display = 'none'; 
                 bannerContainer.style.display = 'none'; 
@@ -572,6 +712,8 @@
             }
         }
         
+        // Esta función ya no tiene un botón directo, solo existe si quieres llamarla desde otra parte
+        /*
         function viewLastSelectedPhoto() {
             if (selectedPhotoIndexes.length > 0) {
                 const lastExistingSelectedPhotoIndex = selectedPhotoIndexes
@@ -587,11 +729,13 @@
                 messageDiv.textContent = 'Por favor, selecciona una foto para ver.';
             }
         }
+        */
 
         function hideFullscreenPhotoView() {
             fullscreenPhotoView.style.display = 'none';
             cameraOverlayContainer.style.display = 'flex';
             takePhotoButton.style.display = 'block';
+            // processPythonButton.style.display = 'block'; // Mostrar el botón de Python si lo tenías activo
             document.querySelector('.gallery-section').style.display = 'block';
             document.querySelector('.camera-controls').style.display = 'flex'; 
             bannerContainer.style.display = 'flex'; 
@@ -599,11 +743,11 @@
 
         function updateButtonsState() {
             const hasPhotos = photos.length > 0;
-            const hasSelectedPhotos = selectedPhotoIndexes.length > 0;
-
-            deletePhotoButton.disabled = !hasSelectedPhotos;
-            viewPhotoButton.disabled = !hasSelectedPhotos;
-            downloadZipButton.disabled = !hasSelectedPhotos; 
+            // El botón de borrar todas se habilita si hay al menos una foto
+            deleteAllPhotosButton.disabled = !hasPhotos; 
+            // El botón de descargar ZIP se habilita si hay al menos una foto seleccionada
+            downloadZipButton.disabled = selectedPhotoIndexes.length === 0;
+            // viewPhotoButton.disabled ya no existe
         }
 
         // --- Funciones de Descarga ZIP ---
@@ -625,6 +769,7 @@
             
             let photoCounter = 0;
             for (const index of selectedPhotoIndexes) {
+                // Asegurarse de que la foto exista y no sea null (por si se borró de otra forma)
                 if (index < photos.length && photos[index] !== null) { 
                     photoCounter++;
                     const photoData = photos[index]; 
@@ -643,6 +788,9 @@
                 console.error("Error al generar el ZIP:", error);
                 messageDiv.textContent = 'Error al generar el archivo ZIP. Inténtalo de nuevo.';
             }
+            // Después de la descarga, es una buena idea deseleccionar las fotos si no se borran
+            selectedPhotoIndexes = [];
+            renderThumbnails(); // Para quitar los bordes de selección
         }
 
         function base64ToBlob(base64, mimeType) {
@@ -675,8 +823,9 @@
 
 
         // --- Event Listeners Globales ---
-        deletePhotoButton.addEventListener('click', deleteSelectedPhotos);
-        viewPhotoButton.addEventListener('click', viewLastSelectedPhoto);
+        // CAMBIADO: Event listener para el nuevo botón de borrar todas
+        deleteAllPhotosButton.addEventListener('click', deleteAllPhotos); 
+        // ELIMINADO: viewPhotoButton.addEventListener('click', viewLastSelectedPhoto);
         downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
