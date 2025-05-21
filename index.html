@@ -134,8 +134,8 @@
         }
 
         .thumbnail-item.selected {
-            border-color: #007bff;
-            transform: scale(1.05);
+            border-color: #007bff; /* Borde azul para la foto seleccionada */
+            transform: scale(1.05); /* Un ligero agrandamiento */
         }
 
         /* Vista de foto predeterminada (ampliada) */
@@ -175,9 +175,9 @@
             background-color: #c82333;
         }
 
-        /* Estilo para el nuevo botón de descarga ZIP */
+        /* Estilo para los nuevos botones */
         #downloadZipButton {
-            background-color: #28a745; /* Verde */
+            background-color: #28a745;
         }
         #downloadZipButton:hover {
             background-color: #218838;
@@ -197,10 +197,10 @@
     <div class="gallery-section">
         <h2>Tus Fotos</h2>
         <div class="gallery-controls">
-            <button id="selectPhotoButton" disabled>Seleccionar Foto</button> 
-            <button id="deletePhotoButton" disabled>Borrar Foto</button>
-            <button id="viewPhotoButton" disabled>Ver Foto Grande</button>
-            <button id="downloadZipButton" disabled>Descargar Fotos (ZIP)</button> </div>
+            <button id="deletePhotoButton" disabled>Borrar Fotos Seleccionadas</button>
+            <button id="viewPhotoButton" disabled>Ver Última Seleccionada</button>
+            <button id="downloadZipButton" disabled>Descargar Fotos Seleccionadas (ZIP)</button>
+        </div>
         <div id="thumbnailsContainer" class="thumbnails-container">
             </div>
     </div>
@@ -219,17 +219,19 @@
         const cameraOverlayContainer = document.querySelector('.camera-overlay-container');
 
         const thumbnailsContainer = document.getElementById('thumbnailsContainer');
-        const selectPhotoButton = document.getElementById('selectPhotoButton'); // Este botón ahora activa la selección por clic
         const deletePhotoButton = document.getElementById('deletePhotoButton');
         const viewPhotoButton = document.getElementById('viewPhotoButton');
-        const downloadZipButton = document.getElementById('downloadZipButton'); // Nuevo botón
+        const downloadZipButton = document.getElementById('downloadZipButton');
 
         const fullscreenPhotoView = document.getElementById('fullscreenPhotoView');
         const fullscreenImage = document.getElementById('fullscreenImage');
         const backButton = document.getElementById('backButton');
 
         let photos = []; // Array para almacenar las URLs de las fotos (Base64)
-        let selectedPhotoIndex = -1; // Índice de la foto seleccionada
+        // selectedPhotoIndexes ahora es un array para selección múltiple
+        let selectedPhotoIndexes = []; 
+        let clickTimer = null; // Para manejar la diferencia entre click y dblclick
+        const DBLCLICK_THRESHOLD = 300; // ms, tiempo máximo entre clics para ser considerado doble clic
 
         // --- Funciones de la Cámara ---
         async function startCamera() {
@@ -293,65 +295,115 @@
         function addPhotoToGallery(photoURL) {
             photos.push(photoURL);
             renderThumbnails();
-            // Seleccionar la última foto automáticamente después de tomarla
-            selectPhoto(photos.length - 1); 
+            // Ya no seleccionamos automáticamente al añadir, la selección es por clic
             messageDiv.textContent = `Foto ${photos.length} tomada y añadida a la galería.`;
         }
 
         function renderThumbnails() {
-            thumbnailsContainer.innerHTML = '';
+            thumbnailsContainer.innerHTML = ''; // Limpiar miniaturas existentes
             photos.forEach((photoURL, index) => {
                 const img = document.createElement('img');
                 img.src = photoURL;
                 img.classList.add('thumbnail-item');
-                img.dataset.index = index;
+                img.dataset.index = index; // Guardar el índice para seleccionar
                 
-                if (index === selectedPhotoIndex) {
+                // Si esta foto está en el array de seleccionadas, añadir la clase 'selected'
+                if (selectedPhotoIndexes.includes(index)) {
                     img.classList.add('selected');
                 }
 
-                img.addEventListener('click', () => {
-                    selectPhoto(index);
+                // Event listener para clic simple (selección múltiple)
+                img.addEventListener('click', (event) => {
+                    // Prevenir que el click se procese si ya hay un timer para dblclick
+                    if (clickTimer) {
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                        return; // Es un doble clic, ignorar el click individual
+                    }
+                    clickTimer = setTimeout(() => {
+                        // Si el timer expira, es un click simple
+                        togglePhotoSelection(index);
+                        updateButtonsState();
+                        clickTimer = null;
+                    }, DBLCLICK_THRESHOLD);
                 });
+
+                // Event listener para doble clic (ver grande)
+                img.addEventListener('dblclick', (event) => {
+                    if (clickTimer) { // Limpiar el timer si hubo un click previo
+                        clearTimeout(clickTimer);
+                        clickTimer = null;
+                    }
+                    viewPhotoAtIndex(index); // Ver esta foto en grande
+                });
+
                 thumbnailsContainer.appendChild(img);
             });
-            updateButtonsState();
+            updateButtonsState(); // Actualizar el estado de los botones
         }
 
-        function selectPhoto(index) {
-            if (index === selectedPhotoIndex) { // Si ya está seleccionada, deseleccionar
-                selectedPhotoIndex = -1;
+        // Función para añadir/quitar un índice del array de seleccionados
+        function togglePhotoSelection(index) {
+            const idxInSelected = selectedPhotoIndexes.indexOf(index);
+            if (idxInSelected > -1) {
+                // Ya está seleccionada, deseleccionar
+                selectedPhotoIndexes.splice(idxInSelected, 1);
             } else {
-                selectedPhotoIndex = index;
+                // No está seleccionada, añadir
+                selectedPhotoIndexes.push(index);
             }
-            renderThumbnails(); // Re-renderizar para actualizar clases
-            updateButtonsState();
+            renderThumbnails(); // Re-renderizar para actualizar el resaltado
         }
 
-        function deleteSelectedPhoto() {
-            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
-                const confirmDelete = confirm('¿Estás seguro de que quieres borrar la foto seleccionada?');
-                if (confirmDelete) {
-                    photos.splice(selectedPhotoIndex, 1);
-                    selectedPhotoIndex = -1; // Resetear la selección
-                    renderThumbnails();
-                    messageDiv.textContent = 'Foto borrada.';
-                }
+
+        function deleteSelectedPhotos() {
+            if (selectedPhotoIndexes.length === 0) {
+                messageDiv.textContent = 'No hay fotos seleccionadas para borrar.';
+                return;
+            }
+
+            const confirmDelete = confirm(`¿Estás seguro de que quieres borrar ${selectedPhotoIndexes.length} foto(s) seleccionada(s)?`);
+            if (confirmDelete) {
+                // Ordenar los índices de forma descendente para evitar problemas al borrar
+                selectedPhotoIndexes.sort((a, b) => b - a);
+                selectedPhotoIndexes.forEach(index => {
+                    if (index < photos.length) {
+                        photos.splice(index, 1);
+                    }
+                });
+                selectedPhotoIndexes = []; // Resetear la selección
+                renderThumbnails(); // Volver a renderizar las miniaturas
+                messageDiv.textContent = `Foto(s) borrada(s).`;
             }
         }
 
-        function viewSelectedPhoto() {
-            if (selectedPhotoIndex !== -1 && selectedPhotoIndex < photos.length) {
-                fullscreenImage.src = photos[selectedPhotoIndex];
+        // Esta función se llama al hacer doble clic o al usar el botón "Ver Última Seleccionada"
+        function viewPhotoAtIndex(index) {
+            if (index !== -1 && index < photos.length) {
+                fullscreenImage.src = photos[index];
                 fullscreenPhotoView.style.display = 'flex';
+                // Ocultar la cámara y la galería temporalmente
                 cameraOverlayContainer.style.display = 'none';
                 takePhotoButton.style.display = 'none';
                 document.querySelector('.gallery-section').style.display = 'none';
+            } else {
+                messageDiv.textContent = 'No se encontró la foto para ver.';
+            }
+        }
+
+        // Botón "Ver Última Seleccionada"
+        function viewLastSelectedPhoto() {
+            if (selectedPhotoIndexes.length > 0) {
+                const lastSelectedIndex = selectedPhotoIndexes[selectedPhotoIndexes.length - 1];
+                viewPhotoAtIndex(lastSelectedIndex);
+            } else {
+                messageDiv.textContent = 'Por favor, selecciona una foto para ver.';
             }
         }
 
         function hideFullscreenPhotoView() {
             fullscreenPhotoView.style.display = 'none';
+            // Volver a mostrar la cámara y la galería
             cameraOverlayContainer.style.display = 'flex';
             takePhotoButton.style.display = 'block';
             document.querySelector('.gallery-section').style.display = 'block';
@@ -359,54 +411,46 @@
 
         function updateButtonsState() {
             const hasPhotos = photos.length > 0;
-            const photoSelected = selectedPhotoIndex !== -1;
+            const hasSelectedPhotos = selectedPhotoIndexes.length > 0;
 
-            // El botón 'Seleccionar Foto' no hace nada si ya hay una seleccionada
-            // o si no hay fotos. La selección ahora es por clic en miniatura.
-            // Lo dejamos habilitado solo si hay fotos para dar una señal visual.
-            selectPhotoButton.disabled = !hasPhotos;
-
-            deletePhotoButton.disabled = !photoSelected;
-            viewPhotoButton.disabled = !photoSelected;
-            downloadZipButton.disabled = !hasPhotos; // Habilita si hay al menos una foto
+            deletePhotoButton.disabled = !hasSelectedPhotos; // Habilita si hay al menos una foto seleccionada
+            viewPhotoButton.disabled = !hasSelectedPhotos; // Habilita si hay al menos una foto seleccionada
+            downloadZipButton.disabled = !hasPhotos; // Habilita si hay al menos una foto en total (para descargar todas)
+            // Si solo quieres descargar ZIP de seleccionadas, usa !hasSelectedPhotos aquí
         }
 
         // --- Funciones de Descarga ZIP ---
         async function downloadSelectedPhotosAsZip() {
-            if (photos.length === 0) {
-                messageDiv.textContent = 'No hay fotos para descargar.';
+            if (selectedPhotoIndexes.length === 0) {
+                messageDiv.textContent = 'No hay fotos seleccionadas para descargar.';
                 return;
             }
 
-            messageDiv.textContent = 'Preparando ZIP de fotos... Esto puede tomar un momento.';
+            messageDiv.textContent = `Preparando ZIP de ${selectedPhotoIndexes.length} foto(s) seleccionada(s)... Esto puede tomar un momento.`;
             const zip = new JSZip();
-
-            // Filtrar solo las fotos seleccionadas (si hay una seleccionada, sino todas)
-            const photosToZip = (selectedPhotoIndex !== -1) ? [photos[selectedPhotoIndex]] : photos;
-
-            // Alternativamente, si SIEMPRE quieres todas las fotos en el ZIP, no importa la selección:
-            // const photosToZip = photos;
-
+            
+            // Solo las fotos que están en el array selectedPhotoIndexes
             let photoCounter = 0;
-            for (const photoURL of photosToZip) {
-                photoCounter++;
-                // Convertir Base64 a Blob para JSZip
-                const base64Data = photoURL.split(',')[1];
-                const blob = base64ToBlob(base64Data, 'image/png');
-                zip.file(`foto_${photoCounter}.png`, blob);
+            for (const index of selectedPhotoIndexes) {
+                if (index < photos.length) { // Asegurarse de que el índice sea válido
+                    photoCounter++;
+                    const photoURL = photos[index];
+                    const base64Data = photoURL.split(',')[1];
+                    const blob = base64ToBlob(base64Data, 'image/png');
+                    zip.file(`foto_seleccionada_${photoCounter}.png`, blob);
+                }
             }
 
             try {
                 const zipBlob = await zip.generateAsync({ type: "blob" });
-                saveAs(zipBlob, "fotos_camara.zip"); // Usa FileSaver.js
-                messageDiv.textContent = `ZIP con ${photosToZip.length} fotos descargado como "fotos_camara.zip".`;
+                saveAs(zipBlob, "fotos_seleccionadas.zip"); 
+                messageDiv.textContent = `ZIP con ${selectedPhotoIndexes.length} foto(s) seleccionada(s) descargado como "fotos_seleccionadas.zip".`;
             } catch (error) {
                 console.error("Error al generar el ZIP:", error);
                 messageDiv.textContent = 'Error al generar el archivo ZIP. Inténtalo de nuevo.';
             }
         }
 
-        // Función auxiliar para convertir Base64 a Blob (necesario para JSZip)
         function base64ToBlob(base64, mimeType) {
             const byteCharacters = atob(base64);
             const byteArrays = [];
@@ -424,17 +468,9 @@
 
 
         // --- Event Listeners Globales ---
-        selectPhotoButton.addEventListener('click', () => {
-            if (photos.length > 0 && selectedPhotoIndex === -1) {
-                selectPhoto(0); // Si no hay nada seleccionado y hay fotos, selecciona la primera
-            } else if (selectedPhotoIndex !== -1) {
-                 // Si ya hay una seleccionada, al hacer clic de nuevo la deselecciona
-                selectPhoto(selectedPhotoIndex); // Llama a selectPhoto con el mismo índice para deseleccionar
-            }
-        });
-        deletePhotoButton.addEventListener('click', deleteSelectedPhoto);
-        viewPhotoButton.addEventListener('click', viewSelectedPhoto);
-        downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip); // Nuevo evento
+        deletePhotoButton.addEventListener('click', deleteSelectedPhotos); // Renombrado
+        viewPhotoButton.addEventListener('click', viewLastSelectedPhoto); // Función adaptada
+        downloadZipButton.addEventListener('click', downloadSelectedPhotosAsZip);
         backButton.addEventListener('click', hideFullscreenPhotoView);
 
         // Inicia la cámara cuando la página se carga
