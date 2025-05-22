@@ -6,7 +6,7 @@ const appOverlayImage = document.getElementById('appOverlayImage');
 const overlaySelect = document.getElementById('overlaySelect');
 const takePhotoButton = document.getElementById('takePhotoButton');
 // --- Modificación aquí: hacer visible el botón ---
-const processPythonButton = document.getElementById('processPythonButton'); 
+const processPythonButton = document.getElementById('processPythonButton');
 // --------------------------------------------------
 const canvas = document.getElementById('canvas');
 const messageElement = document.getElementById('message');
@@ -32,7 +32,6 @@ const LOCAL_STORAGE_OVERLAY_KEY = 'selectedOverlay';
 // === Funciones de la Cámara ===
 
 async function startCamera() {
-    // ... (Mantén tu código actual de startCamera, no necesita cambios) ...
     console.log("startCamera() llamada.");
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -94,7 +93,7 @@ async function startCamera() {
                 video.play();
                 console.log("Cámara iniciada con restricciones relajadas.");
                 messageElement.textContent = 'Cámara iniciada con éxito (usando cámara predeterminada).';
-                
+
                 video.onloadedmetadata = () => {
                     const videoTrack = stream.getVideoTracks()[0];
                     const settings = videoTrack.getSettings();
@@ -119,7 +118,6 @@ async function startCamera() {
 
 
 function captureFrameWithOverlay() {
-    // ... (Mantén tu código actual de captureFrameWithOverlay, ya lo modificamos para no incluir el overlay) ...
     console.log("captureFrameWithOverlay() llamada.");
     if (!video.srcObject) {
         console.log("Error: video.srcObject es null, la cámara no está activa.");
@@ -134,7 +132,7 @@ function captureFrameWithOverlay() {
     canvas.height = videoHeight;
     const context = canvas.getContext('2d');
 
-    context.save(); 
+    context.save();
     const transform = video.style.transform;
     if (transform.includes('rotate(90deg)')) {
         context.translate(canvas.width, 0);
@@ -156,7 +154,6 @@ function captureFrameWithOverlay() {
 }
 
 // === Funciones de Galería y Guardado ===
-// ... (Mantén todas estas funciones como están) ...
 function addPhotoToGallery(photo) {
     console.log("addPhotoToGallery() llamada con:", photo.name);
     if (!capturedPhotos.some(p => p.url === photo.url)) {
@@ -194,7 +191,7 @@ function renderThumbnails() {
     capturedPhotos.forEach((photo, index) => {
         const thumbnailDiv = document.createElement('div');
         thumbnailDiv.classList.add('thumbnail');
-        thumbnailDiv.dataset.index = index; 
+        thumbnailDiv.dataset.index = index;
 
         const img = document.createElement('img');
         img.src = photo.url;
@@ -220,11 +217,11 @@ function renderThumbnails() {
             e.stopPropagation();
             showFullscreenPhoto(photo.url);
         });
-        
+
         thumbnailDiv.appendChild(img);
         thumbnailDiv.appendChild(checkbox);
         thumbnailDiv.appendChild(viewButton);
-        
+
         let clickTimeout;
         thumbnailDiv.addEventListener('click', (e) => {
             if (e.target === checkbox || e.target === viewButton) {
@@ -273,7 +270,6 @@ function updateButtonsState() {
     processPythonButton.disabled = selectedPhotosCount !== 1; // Solo si hay exactamente una foto seleccionada
 }
 
-// ... (El resto de funciones como applySelectedOverlay, loadSelectedOverlay, etc. no necesitan cambios) ...
 function applySelectedOverlay() {
     const selectedValue = overlaySelect.value;
     if (selectedValue) {
@@ -301,6 +297,21 @@ function loadSelectedOverlay() {
 }
 
 
+// === Funciones de ayuda para conversión de imagen ===
+// Convierte una data URL (Base64) a un objeto Blob (útil para FormData)
+async function dataURLtoBlob(dataurl) {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+}
+
+
 // === Event Listeners ===
 
 takePhotoButton.addEventListener('click', () => {
@@ -308,7 +319,7 @@ takePhotoButton.addEventListener('click', () => {
     const photoURL = captureFrameWithOverlay();
     if (photoURL) {
         console.log("Foto capturada, URL generada.");
-        addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString().replace(/[:.-]/g, '') + ".png" }); 
+        addPhotoToGallery({ url: photoURL, name: "foto_" + new Date().toISOString().replace(/[:.-]/g, '') + ".png" });
         messageElement.textContent = '¡Foto tomada!';
     } else {
         console.log("No se pudo capturar la foto (photoURL es null).");
@@ -352,7 +363,7 @@ downloadZipButton.addEventListener('click', async () => {
     for (const photo of selectedPhotos) {
         try {
             const base64Data = photo.url.split(',')[1];
-            const cleanName = photo.name.replace(/[^a-zA-Z0-9.\-_]/g, '_'); 
+            const cleanName = photo.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
             zip.file(cleanName, base64Data, { base64: true });
             console.log(`Añadida ${cleanName} al ZIP.`);
         } catch (error) {
@@ -403,13 +414,17 @@ processPythonButton.addEventListener('click', async () => {
     ocrQrImage.src = '';
 
     try {
+        // === MODIFICACIÓN CLAVE AQUÍ: Convertir a Blob y usar FormData ===
+        const imageBlob = await dataURLtoBlob(selectedPhoto.url); // Convierte la data URL a Blob
+        const formData = new FormData();
+        formData.append('image', imageBlob, 'photo.png'); // Añade el Blob a FormData con el nombre 'image'
+
         const response = await fetch('https://mi-camara-web.onrender.com/process_image', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ image: selectedPhoto.url }) // Envía la URL base64 de la foto
+            // ¡IMPORTANTE! NO establecer 'Content-Type' aquí. FormData lo hace automáticamente.
+            body: formData, // Usa formData directamente
         });
+        // ===================================================================
 
         const result = await response.json();
 
@@ -417,7 +432,7 @@ processPythonButton.addEventListener('click', async () => {
             console.log("Procesamiento IA exitoso:", result);
             messageElement.textContent = "Procesamiento IA completado. Resultados mostrados.";
             ocrResultsContainer.style.display = 'flex'; // Mostrar contenedor de resultados
-            
+
             let extractedText = "Datos Extraídos:\n";
             for (const key in result.extracted_data) {
                 extractedText += `${key.charAt(0).toUpperCase() + key.slice(1)}: ${result.extracted_data[key]}\n`;
