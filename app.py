@@ -9,15 +9,32 @@ import qrcode
 from PIL import Image
 import io
 import base64
+import os # <-- ¡Añadir esta importación!
 
 app = Flask(__name__)
 CORS(app)
 
 # --- CONFIGURACIÓN DE TESSERACT OCR ---
 # ¡IMPORTANTE! Para Render, especifica la ruta de instalación de apt.txt
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract' # <--- ¡CAMBIO AQUÍ!
-# Si estás ejecutando localmente en Windows, esta línea debe estar COMENTADA
-# o apuntar a tu tesseract.exe local. Para Render, esta es la ruta.
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+
+# --- DIAGNÓSTICO ADICIONAL ---
+# Añade esto para intentar ver si tesseract está accesible
+try:
+    # Verificar si el archivo existe y es ejecutable
+    if os.path.exists(pytesseract.pytesseract.tesseract_cmd) and \
+       os.access(pytesseract.pytesseract.tesseract_cmd, os.X_OK):
+        app.logger.info(f"Tesseract binary found and executable at: {pytesseract.pytesseract.tesseract_cmd}")
+        # Intenta ejecutar un comando simple de tesseract para verificar su funcionamiento
+        version_info = pytesseract.get_tesseract_version()
+        app.logger.info(f"Tesseract version detected: {version_info}")
+    else:
+        app.logger.error(f"Tesseract binary NOT found or NOT executable at: {pytesseract.pytesseract.tesseract_cmd}")
+        # Opcional: imprimir el PATH para depuración (puede ser muy largo)
+        # app.logger.info(f"Current PATH: {os.environ.get('PATH')}")
+except Exception as e:
+    app.logger.error(f"Error checking Tesseract path/version: {e}")
+# --- FIN DIAGNÓSTICO ---
 
 
 @app.route('/')
@@ -26,6 +43,7 @@ def home():
 
 @app.route('/process_image', methods=['POST'])
 def process_image():
+    # ... (el resto del código de process_image es el mismo) ...
     if 'image' not in request.files:
         app.logger.error("No se encontró la imagen en la solicitud FormData.")
         return jsonify({"error": "No se encontró la imagen en la solicitud"}), 400
@@ -38,6 +56,7 @@ def process_image():
 
     if file:
         try:
+            # ... (tu código de procesamiento de imagen, sin cambios aquí) ...
             img_stream = file.read()
             nparr = np.frombuffer(img_stream, np.uint8)
             img_full = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -51,7 +70,7 @@ def process_image():
             h_img, w_img, _ = img_full.shape
 
             regs = {
-                'numero_serie': [0.10, 0.20, 0.30, 0.25], # Ejemplo: x1, y1, x2, y2 (fracciones)
+                'numero_serie': [0.10, 0.20, 0.30, 0.25],
                 'modelo':       [0.40, 0.20, 0.60, 0.25],
                 'descripcion':  [0.10, 0.30, 0.90, 0.40]
             }
@@ -98,6 +117,7 @@ def process_image():
             }), 200
 
         except pytesseract.TesseractNotFoundError as e:
+            # Este es el error que estás viendo
             app.logger.error(f"Error de Tesseract: {e}. Asegúrate de que Tesseract esté instalado y en el PATH del servidor.")
             return jsonify({"error": "Error del motor OCR. Tesseract no encontrado en el servidor. Detalles: " + str(e)}), 500
         except Exception as e:
