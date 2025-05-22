@@ -403,7 +403,7 @@ processPythonButton.addEventListener('click', async () => {
     ocrQrImage.src = '';
 
     try {
-        const response = await fetch('https://mi-camara-web.onrender.com', {
+        const response = await fetch('https://mi-camara-web.onrender.com/process_image', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
