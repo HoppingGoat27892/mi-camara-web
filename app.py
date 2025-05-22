@@ -12,9 +12,9 @@ import io
 # --- Configuración de Tesseract ---
 # Si Tesseract no está en tu PATH, descomenta la línea de abajo y ajusta la ruta.
 # Ejemplo para Windows:
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 # Ejemplo para macOS/Linux si está en un lugar no estándar:
-# pytesseract.pytesseract.tesseract_cmd = r'/usr/local/bin/tesseract' # o donde lo hayas instalado
+#pytesseract.pytesseract.tesseract_cmd = r'/usr/local/bin/tesseract' # o donde lo hayas instalado
 
 app = Flask(__name__)
 CORS(app) # Habilita CORS para permitir solicitudes desde tu frontend (origin diferente)
