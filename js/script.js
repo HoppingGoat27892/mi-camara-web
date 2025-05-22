@@ -5,7 +5,9 @@ const video = document.getElementById('videoElement');
 const appOverlayImage = document.getElementById('appOverlayImage');
 const overlaySelect = document.getElementById('overlaySelect');
 const takePhotoButton = document.getElementById('takePhotoButton');
-const processPythonButton = document.getElementById('processPythonButton'); // Botón para IA
+// --- Modificación aquí: hacer visible el botón ---
+const processPythonButton = document.getElementById('processPythonButton'); 
+// --------------------------------------------------
 const canvas = document.getElementById('canvas');
 const messageElement = document.getElementById('message');
 const thumbnailsContainer = document.getElementById('thumbnailsContainer');
@@ -22,14 +24,15 @@ const ocrQrImage = document.getElementById('ocrQrImage');
 const closeOcrResultsButton = document.getElementById('closeOcrResults');
 
 // === Variables Globales ===
-let currentStream; // Para almacenar el stream de la cámara y poder detenerlo
-let capturedPhotos = []; // Almacena los objetos { url, name, isSelected }
+let currentStream;
+let capturedPhotos = [];
 const LOCAL_STORAGE_KEY = 'capturedPhotos';
 const LOCAL_STORAGE_OVERLAY_KEY = 'selectedOverlay';
 
 // === Funciones de la Cámara ===
 
 async function startCamera() {
+    // ... (Mantén tu código actual de startCamera, no necesita cambios) ...
     console.log("startCamera() llamada.");
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -49,23 +52,19 @@ async function startCamera() {
         messageElement.textContent = ''; // Limpiar mensajes de error anteriores
 
         // === Lógica de rotación de video para móvil ===
-        // Esto es crucial para la vista previa y puede depender de la orientación del dispositivo
         video.onloadedmetadata = () => {
             const videoTrack = stream.getVideoTracks()[0];
             const settings = videoTrack.getSettings();
             const { width, height, facingMode } = settings;
             console.log(`Video metadata: ${width}x${height}, Facing Mode: ${facingMode}`);
 
-            // Determinar si el video necesita rotación para verse correctamente en la orientación del dispositivo
-            // Si el video es más ancho que alto (horizontal) y la ventana es más alta que ancha (vertical)
             if (width > height && window.innerHeight > window.innerWidth) {
                 console.log("Detectado video horizontal en modo retrato del dispositivo. Aplicando rotación 90deg.");
                 video.style.transform = 'rotate(90deg)';
-                // Si es cámara frontal, también voltear horizontalmente
                 if (facingMode === 'user') {
                     video.style.transform += ' scaleX(-1)';
                 }
-            } else if (width < height && window.innerWidth > window.innerHeight) { // Video vertical en modo paisaje
+            } else if (width < height && window.innerWidth > window.innerHeight) {
                 console.log("Detectado video vertical en modo paisaje del dispositivo. Aplicando rotación -90deg.");
                 video.style.transform = 'rotate(-90deg)';
                 if (facingMode === 'user') {
@@ -73,12 +72,11 @@ async function startCamera() {
                 }
             } else {
                 console.log("Video y dispositivo en la misma orientación. Sin rotación.");
-                video.style.transform = 'none'; // Asegurarse de que no haya transformaciones residuales
+                video.style.transform = 'none';
                 if (facingMode === 'user') {
-                    video.style.transform = 'scaleX(-1)'; // Solo volteo horizontal para selfie
+                    video.style.transform = 'scaleX(-1)';
                 }
             }
-            // Asegurarse que el overlay también se ajuste a la rotación si es necesario
             appOverlayImage.style.transform = video.style.transform;
         };
 
@@ -88,7 +86,6 @@ async function startCamera() {
         messageElement.textContent = `Error al acceder a la cámara: ${err.name}. Asegúrate de permitir el acceso.`;
         if (err.name === 'OverconstrainedError') {
             messageElement.textContent += " Es posible que tu dispositivo no tenga la cámara trasera o que las restricciones sean demasiado estrictas. Intentando con cámara por defecto.";
-            // Intentar con una restricción más relajada si la cámara trasera no es compatible
             try {
                 const relaxedConstraints = { video: true };
                 const stream = await navigator.mediaDevices.getUserMedia(relaxedConstraints);
@@ -101,13 +98,12 @@ async function startCamera() {
                 video.onloadedmetadata = () => {
                     const videoTrack = stream.getVideoTracks()[0];
                     const settings = videoTrack.getSettings();
-                    // Si la cámara relajada es la frontal (user), aplicar flip horizontal
                     if (settings.facingMode === 'user') {
                         console.log("Cámara frontal detectada, aplicando volteo horizontal.");
-                        video.style.transform = 'scaleX(-1)'; // Voltear horizontalmente
+                        video.style.transform = 'scaleX(-1)';
                         appOverlayImage.style.transform = 'scaleX(-1)';
                     } else {
-                        video.style.transform = 'none'; // Asegurarse de que no haya volteo
+                        video.style.transform = 'none';
                         appOverlayImage.style.transform = 'none';
                     }
                 };
@@ -123,6 +119,7 @@ async function startCamera() {
 
 
 function captureFrameWithOverlay() {
+    // ... (Mantén tu código actual de captureFrameWithOverlay, ya lo modificamos para no incluir el overlay) ...
     console.log("captureFrameWithOverlay() llamada.");
     if (!video.srcObject) {
         console.log("Error: video.srcObject es null, la cámara no está activa.");
@@ -137,8 +134,6 @@ function captureFrameWithOverlay() {
     canvas.height = videoHeight;
     const context = canvas.getContext('2d');
 
-    // Dibuja el frame del video en el canvas
-    // Aplica las transformaciones del video (rotación/volteo) al contexto del canvas
     context.save(); 
     const transform = video.style.transform;
     if (transform.includes('rotate(90deg)')) {
@@ -153,36 +148,7 @@ function captureFrameWithOverlay() {
         context.scale(-1, 1);
     }
     context.drawImage(video, 0, 0, videoWidth, videoHeight);
-    context.restore(); // Restaura el estado del contexto
-
-
-    // === CAMBIO CLAVE AQUÍ: Hemos comentado el código que dibuja el overlay ===
-    // Si quieres que la foto capturada NO incluya la máscara (overlay),
-    // simplemente no dibujes la imagen appOverlayImage en el canvas.
-    /*
-    if (appOverlayImage.style.display !== 'none' && appOverlayImage.src) {
-        if (appOverlayImage.naturalWidth > 0 && appOverlayImage.naturalHeight > 0) {
-            // Dibuja el overlay con las mismas transformaciones que el video
-            context.save();
-            if (transform.includes('rotate(90deg)')) {
-                context.translate(canvas.width, 0);
-                context.rotate(Math.PI / 2);
-            } else if (transform.includes('rotate(-90deg)')) {
-                context.translate(0, canvas.height);
-                context.rotate(-Math.PI / 2);
-            }
-            if (transform.includes('scaleX(-1)')) {
-                context.translate(canvas.width, 0);
-                context.scale(-1, 1);
-            }
-            context.drawImage(appOverlayImage, 0, 0, videoWidth, videoHeight);
-            context.restore();
-            console.log("Overlay dibujado en el canvas.");
-        } else {
-            console.warn("La imagen de overlay no está completamente cargada, no se dibujó.");
-        }
-    }
-    */
+    context.restore();
 
     const photoURL = canvas.toDataURL('image/png');
     console.log("URL de foto capturada generada.");
@@ -190,7 +156,7 @@ function captureFrameWithOverlay() {
 }
 
 // === Funciones de Galería y Guardado ===
-
+// ... (Mantén todas estas funciones como están) ...
 function addPhotoToGallery(photo) {
     console.log("addPhotoToGallery() llamada con:", photo.name);
     if (!capturedPhotos.some(p => p.url === photo.url)) {
@@ -211,7 +177,6 @@ function loadPhotosFromLocalStorage() {
     const storedPhotos = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedPhotos) {
         capturedPhotos = JSON.parse(storedPhotos);
-        // Asegurarse de que 'isSelected' exista en objetos antiguos si no lo tenían
         capturedPhotos = capturedPhotos.map(photo => ({ ...photo, isSelected: photo.isSelected || false }));
         renderThumbnails();
         updateButtonsState();
@@ -234,14 +199,14 @@ function renderThumbnails() {
         const img = document.createElement('img');
         img.src = photo.url;
         img.alt = photo.name || `Foto ${index + 1}`;
-        img.classList.add('thumbnail-image'); // Nueva clase para la imagen dentro del thumbnail
+        img.classList.add('thumbnail-image');
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.classList.add('thumbnail-checkbox');
         checkbox.checked = photo.isSelected;
         checkbox.addEventListener('change', (e) => {
-            e.stopPropagation(); // Evita que el clic en el checkbox active el evento del div
+            e.stopPropagation();
             photo.isSelected = checkbox.checked;
             thumbnailDiv.classList.toggle('selected', photo.isSelected);
             updateButtonsState();
@@ -252,7 +217,7 @@ function renderThumbnails() {
         viewButton.textContent = 'Ver';
         viewButton.classList.add('view-button');
         viewButton.addEventListener('click', (e) => {
-            e.stopPropagation(); // Evita que el clic en el botón active el evento del div
+            e.stopPropagation();
             showFullscreenPhoto(photo.url);
         });
         
@@ -278,7 +243,7 @@ function renderThumbnails() {
                     updateButtonsState();
                     savePhotosToLocalStorage();
                     clickTimeout = null;
-                }, 300); // 300ms es un buen umbral para doble clic
+                }, 300);
             }
         });
 
@@ -303,10 +268,12 @@ function updateButtonsState() {
     deleteSelectedPhotosButton.disabled = selectedPhotosCount === 0;
     downloadZipButton.disabled = selectedPhotosCount === 0;
     deleteAllPhotosButton.disabled = capturedPhotos.length === 0;
+
+    // Habilitar/Deshabilitar el botón de procesar IA
+    processPythonButton.disabled = selectedPhotosCount !== 1; // Solo si hay exactamente una foto seleccionada
 }
 
-// === Funciones de Patrón (Overlay) ===
-
+// ... (El resto de funciones como applySelectedOverlay, loadSelectedOverlay, etc. no necesitan cambios) ...
 function applySelectedOverlay() {
     const selectedValue = overlaySelect.value;
     if (selectedValue) {
@@ -315,10 +282,10 @@ function applySelectedOverlay() {
         console.log("Patrón aplicado:", selectedValue);
     } else {
         appOverlayImage.style.display = 'none';
-        appOverlayImage.src = ''; // Limpiar src para evitar intentos de carga
+        appOverlayImage.src = '';
         console.log("Patrón deshabilitado.");
     }
-    localStorage.setItem(LOCAL_STORAGE_OVERLAY_KEY, selectedValue); // Guardar la selección
+    localStorage.setItem(LOCAL_STORAGE_OVERLAY_KEY, selectedValue);
 }
 
 function loadSelectedOverlay() {
@@ -328,10 +295,11 @@ function loadSelectedOverlay() {
         overlaySelect.value = storedOverlay;
         applySelectedOverlay();
     } else {
-        overlaySelect.value = "assets/images/image_f2b0cc.png"; //
+        overlaySelect.value = "assets/images/image_f2b0cc.png";
         applySelectedOverlay();
     }
 }
+
 
 // === Event Listeners ===
 
@@ -379,7 +347,7 @@ downloadZipButton.addEventListener('click', async () => {
     }
 
     messageElement.textContent = 'Preparando ZIP de fotos...';
-    const zip = new JSZip(); // Asegúrate de que JSZip esté cargado
+    const zip = new JSZip();
 
     for (const photo of selectedPhotos) {
         try {
@@ -397,7 +365,7 @@ downloadZipButton.addEventListener('click', async () => {
     try {
         const zipFileName = (zipFileNameInput.value || 'mis_fotos').replace(/[^a-zA-Z0-9.\-_]/g, '_') + '.zip';
         const content = await zip.generateAsync({ type: "blob" });
-        saveAs(content, zipFileName); // Asegúrate de que FileSaver esté cargado
+        saveAs(content, zipFileName);
         messageElement.textContent = `¡${selectedPhotos.length} fotos descargadas en ${zipFileName}!`;
         console.log("ZIP generado y descargado con éxito.");
     } catch (error) {
@@ -407,8 +375,8 @@ downloadZipButton.addEventListener('click', async () => {
 });
 
 backButton.addEventListener('click', () => {
-    fullscreenPhotoView.style.display = 'none'; // Ocultar la vista de pantalla completa
-    fullscreenImage.src = ''; // Limpiar la imagen
+    fullscreenPhotoView.style.display = 'none';
+    fullscreenImage.src = '';
     console.log("Regresando de la vista de pantalla completa.");
 });
 
@@ -419,6 +387,65 @@ closeOcrResultsButton.addEventListener('click', () => {
     console.log("Cerrando resultados de OCR.");
 });
 
+// === NUEVO EVENT LISTENER para el botón de Procesar con IA ===
+processPythonButton.addEventListener('click', async () => {
+    console.log("Botón Procesar con IA clickeado.");
+    const selectedPhoto = capturedPhotos.find(p => p.isSelected);
+
+    if (!selectedPhoto) {
+        messageElement.textContent = "Por favor, selecciona una foto para procesar con IA.";
+        return;
+    }
+
+    messageElement.textContent = "Enviando foto a la IA para procesamiento...";
+    ocrResultsContainer.style.display = 'none'; // Ocultar resultados anteriores
+    ocrExtractedData.textContent = '';
+    ocrQrImage.src = '';
+
+    try {
+        const response = await fetch('http://127.0.0.1:5000/process_image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: selectedPhoto.url }) // Envía la URL base64 de la foto
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            console.log("Procesamiento IA exitoso:", result);
+            messageElement.textContent = "Procesamiento IA completado. Resultados mostrados.";
+            ocrResultsContainer.style.display = 'flex'; // Mostrar contenedor de resultados
+            
+            let extractedText = "Datos Extraídos:\n";
+            for (const key in result.extracted_data) {
+                extractedText += `${key.charAt(0).toUpperCase() + key.slice(1)}: ${result.extracted_data[key]}\n`;
+            }
+            ocrExtractedData.textContent = extractedText;
+
+            // Mostrar la imagen QR si se recibió
+            if (result.qr_image_b64) {
+                ocrQrImage.src = `data:image/png;base64,${result.qr_image_b64}`;
+                ocrQrImage.style.display = 'block';
+            } else {
+                ocrQrImage.style.display = 'none';
+            }
+
+        } else {
+            console.error("Error del backend IA:", result.error);
+            messageElement.textContent = `Error al procesar con IA: ${result.error || 'Error desconocido'}`;
+            ocrResultsContainer.style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error("Error de conexión o de red con el backend IA:", error);
+        messageElement.textContent = `Error de conexión con el servidor IA. Asegúrate de que Python (Flask) esté corriendo. Detalles: ${error.message}`;
+        ocrResultsContainer.style.display = 'none';
+    }
+});
+
+
 // === Inicialización de la aplicación ===
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM content loaded, iniciando la aplicación.");
@@ -426,4 +453,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPhotosFromLocalStorage(); // Carga las fotos guardadas
     loadSelectedOverlay(); // Carga el overlay seleccionado
     updateButtonsState(); // Actualiza el estado de los botones
+    // --- Modificación aquí: Mostrar el botón de procesar con IA al inicio ---
+    processPythonButton.style.display = 'block';
 });
